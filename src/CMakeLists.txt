@@ -1,0 +1,6 @@
+file(GLOB_RECURSE app_sources ${CMAKE_SOURCE_DIR}/src/*.c ${CMAKE_SOURCE_DIR}/src/*.cpp)
+idf_component_register(SRCS ${app_sources}
+                       INCLUDE_DIRS "."
+                       PRIV_REQUIRES esp_wifi esp_netif nvs_flash esp_http_server esp_lcd
+                                     esp_driver_gpio esp_driver_spi esp_driver_ledc esp_driver_rmt
+                                     esp_timer lwip esp_system)

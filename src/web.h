@@ -1,0 +1,13 @@
+#pragma once
+
+#include "logic/settings.h"
+
+// Settings page and small JSON API on http://192.168.73.1/
+//   GET  /             status + settings form
+//   POST /save         save settings (form), then restart
+//   GET  /api/status   JSON status
+//   GET  /api/log      recent log text
+//   POST /api/reboot?mode=normal|safe|download
+//        restart; "safe" and "download" give USB back to serial/JTAG for esptool
+//   POST /api/ota      body = firmware.bin; flashes the other slot and restarts
+void webStart(const Settings& current);

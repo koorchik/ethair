@@ -29,7 +29,8 @@ struct Settings {
 // "BMCam-XXXX" from the last two MAC bytes.
 void defaultSettings(const uint8_t mac[6], Settings& out);
 
-// Each returns nullptr when valid, else a short English error message.
+// Each returns nullptr when valid, else a short Ukrainian error message
+// shown on the settings page.
 const char* validateSsid(const char* ssid);
 const char* validatePassword(const char* password);
 const char* validateChannel(int channel);

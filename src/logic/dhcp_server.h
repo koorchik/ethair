@@ -67,7 +67,7 @@ public:
     const DhcpConfig& config() const { return cfg_; }
 
 private:
-    DhcpLease* findByMac(const uint8_t mac[6]);
+    DhcpLease* findByMac(const uint8_t mac[6], bool camera);
     bool ipTaken(uint32_t ip, const uint8_t mac[6], uint32_t nowSec) const;
     uint32_t pickIp(const uint8_t mac[6], bool camera, uint32_t requested, uint32_t nowSec);
     DhcpLease* bind(const uint8_t mac[6], uint32_t ip, bool camera, uint32_t nowSec,

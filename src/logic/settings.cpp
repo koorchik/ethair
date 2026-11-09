@@ -21,39 +21,39 @@ void defaultSettings(const uint8_t mac[6], Settings& out) {
 }
 
 const char* validateSsid(const char* ssid) {
-    if (!ssid) return "Network name is missing";
+    if (!ssid) return "Не вказано назву мережі";
     const size_t n = strlen(ssid);
-    if (n == 0) return "Network name must not be empty";
-    if (n > SSID_MAX) return "Network name must be at most 32 characters";
-    if (!printable(ssid)) return "Network name may only use plain ASCII characters";
+    if (n == 0) return "Назва мережі не може бути порожньою";
+    if (n > SSID_MAX) return "Назва мережі: не більше 32 символів";
+    if (!printable(ssid)) return "Назва мережі: лише латиниця, цифри та звичайні знаки";
     return nullptr;
 }
 
 const char* validatePassword(const char* password) {
-    if (!password) return "Password is missing";
+    if (!password) return "Не вказано пароль";
     const size_t n = strlen(password);
-    if (n < PASS_MIN || n > PASS_MAX) return "Password must be 8 to 63 characters";
-    if (!printable(password)) return "Password may only use plain ASCII characters";
+    if (n < PASS_MIN || n > PASS_MAX) return "Пароль: від 8 до 63 символів";
+    if (!printable(password)) return "Пароль: лише латиниця, цифри та звичайні знаки";
     return nullptr;
 }
 
 const char* validateChannel(int channel) {
-    if (channel < CHANNEL_MIN || channel > CHANNEL_MAX) return "Channel must be 1 to 13";
+    if (channel < CHANNEL_MIN || channel > CHANNEL_MAX) return "Канал: від 1 до 13";
     return nullptr;
 }
 
 const char* validateHostname(const char* hostname) {
-    if (!hostname) return "Camera name is missing";
+    if (!hostname) return "Не вказано ім'я камери";
     const size_t n = strlen(hostname);
-    if (n == 0 || n > HOSTNAME_MAX) return "Camera name must be 1 to 63 characters";
+    if (n == 0 || n > HOSTNAME_MAX) return "Ім'я камери: від 1 до 63 символів";
     if (hostname[0] == '-' || hostname[n - 1] == '-') {
-        return "Camera name must not start or end with '-'";
+        return "Ім'я камери не може починатися чи закінчуватися на '-'";
     }
     for (size_t i = 0; i < n; ++i) {
         const char c = hostname[i];
         const bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
                         (c >= '0' && c <= '9') || c == '-';
-        if (!ok) return "Camera name may only use letters, digits and '-'";
+        if (!ok) return "Ім'я камери: лише латинські літери, цифри та '-'";
     }
     return nullptr;
 }

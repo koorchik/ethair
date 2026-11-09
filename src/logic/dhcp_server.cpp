@@ -119,9 +119,11 @@ void DhcpServer::clear() {
     memset(leases_, 0, sizeof(leases_));
 }
 
-DhcpLease* DhcpServer::findByMac(const uint8_t mac[6]) {
+DhcpLease* DhcpServer::findByMac(const uint8_t mac[6], bool camera) {
+    // A lease belongs to a (MAC, side) pair: a Wi-Fi client spoofing the
+    // camera's MAC never touches the camera's lease, and vice versa.
     for (DhcpLease& l : leases_) {
-        if (l.used && memcmp(l.mac, mac, 6) == 0) return &l;
+        if (l.used && l.camera == camera && memcmp(l.mac, mac, 6) == 0) return &l;
     }
     return nullptr;
 }
@@ -136,8 +138,8 @@ bool DhcpServer::ipTaken(uint32_t ip, const uint8_t mac[6], uint32_t nowSec) con
 uint32_t DhcpServer::pickIp(const uint8_t mac[6], bool camera, uint32_t requested,
                             uint32_t nowSec) {
     if (camera) return cfg_.cameraIp;
-    DhcpLease* existing = findByMac(mac);
-    if (existing && !existing->camera) return existing->ip;
+    DhcpLease* existing = findByMac(mac, false);
+    if (existing) return existing->ip;
     if (requested >= cfg_.poolStart && requested <= cfg_.poolEnd &&
         !ipTaken(requested, mac, nowSec)) {
         return requested;
@@ -150,7 +152,7 @@ uint32_t DhcpServer::pickIp(const uint8_t mac[6], bool camera, uint32_t requeste
 
 DhcpLease* DhcpServer::bind(const uint8_t mac[6], uint32_t ip, bool camera, uint32_t nowSec,
                             const char* hostname) {
-    DhcpLease* l = findByMac(mac);
+    DhcpLease* l = findByMac(mac, camera);
     if (!l) {
         for (DhcpLease& e : leases_) {
             if (!e.used || expired(e, nowSec)) {
@@ -219,7 +221,10 @@ size_t DhcpServer::handle(const uint8_t* in, size_t inLen, bool fromCamera, uint
         }
         case DHCP_DECLINE:
         case DHCP_RELEASE: {
-            if (DhcpLease* l = findByMac(info.mac)) l->used = false;
+            if (info.serverId && info.serverId != cfg_.serverIp) return 0;
+            DhcpLease* l = findByMac(info.mac, fromCamera);
+            const uint32_t ip = info.type == DHCP_RELEASE ? info.ciaddr : info.requestedIp;
+            if (l && l->ip == ip) l->used = false;
             return 0;
         }
         case DHCP_INFORM: {

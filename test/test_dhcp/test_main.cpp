@@ -153,10 +153,20 @@ void test_request_for_other_server_is_ignored(void) {
                                          false, 1, out, sizeof(out)));
 }
 
+static size_t mkRelease(const uint8_t mac[6], uint32_t ciaddr) {
+    size_t n = mkReq(DHCP_RELEASE, mac);
+    req[12] = (uint8_t)(ciaddr >> 24);
+    req[13] = (uint8_t)(ciaddr >> 16);
+    req[14] = (uint8_t)(ciaddr >> 8);
+    req[15] = (uint8_t)ciaddr;
+    return n;
+}
+
 void test_release_frees_lease(void) {
     DhcpServer s(CFG);
     s.handle(req, mkReq(DHCP_REQUEST, PHONE, ipv4(192, 168, 73, 10)), false, 1, out, sizeof(out));
-    TEST_ASSERT_EQUAL_size_t(0, s.handle(req, mkReq(DHCP_RELEASE, PHONE), false, 2, out, sizeof(out)));
+    TEST_ASSERT_EQUAL_size_t(0, s.handle(req, mkRelease(PHONE, ipv4(192, 168, 73, 10)), false, 2,
+                                         out, sizeof(out)));
     DhcpLease l[4];
     TEST_ASSERT_EQUAL_size_t(0, s.activeLeases(3, l, 4));
 }
@@ -203,6 +213,28 @@ void test_new_camera_mac_replaces_old_camera_lease(void) {
     TEST_ASSERT_EQUAL_MEMORY(PHONE2, l[0].mac, 6);
 }
 
+void test_wifi_spoofing_camera_mac_cannot_touch_camera_lease(void) {
+    DhcpServer s(CFG);
+    s.handle(req, mkReq(DHCP_REQUEST, CAMERA, ipv4(192, 168, 73, 2)), true, 1, out, sizeof(out));
+    // Release from Wi-Fi with the camera's MAC and IP: ignored.
+    s.handle(req, mkRelease(CAMERA, ipv4(192, 168, 73, 2)), false, 2, out, sizeof(out));
+    // Request from Wi-Fi with the camera's MAC: gets a pool address, camera lease intact.
+    s.handle(req, mkReq(DHCP_DISCOVER, CAMERA), false, 3, out, sizeof(out));
+    TEST_ASSERT_EQUAL_HEX32(ipv4(192, 168, 73, 10), yiaddr());
+    s.handle(req, mkReq(DHCP_REQUEST, CAMERA, ipv4(192, 168, 73, 10)), false, 4, out, sizeof(out));
+    DhcpLease cam;
+    TEST_ASSERT_TRUE(s.cameraLease(5, cam));
+    TEST_ASSERT_EQUAL_HEX32(ipv4(192, 168, 73, 2), cam.ip);
+}
+
+void test_release_with_wrong_ip_is_ignored(void) {
+    DhcpServer s(CFG);
+    s.handle(req, mkReq(DHCP_REQUEST, PHONE, ipv4(192, 168, 73, 10)), false, 1, out, sizeof(out));
+    s.handle(req, mkRelease(PHONE, ipv4(192, 168, 73, 11)), false, 2, out, sizeof(out));
+    DhcpLease l[4];
+    TEST_ASSERT_EQUAL_size_t(1, s.activeLeases(3, l, 4));
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(test_camera_discover_gets_fixed_ip);
@@ -219,5 +251,7 @@ int main(int, char**) {
     RUN_TEST(test_garbage_is_ignored);
     RUN_TEST(test_truncated_option_does_not_overrun);
     RUN_TEST(test_new_camera_mac_replaces_old_camera_lease);
+    RUN_TEST(test_wifi_spoofing_camera_mac_cannot_touch_camera_lease);
+    RUN_TEST(test_release_with_wrong_ip_is_ignored);
     return UNITY_END();
 }

@@ -127,6 +127,35 @@ void renderPage(Out& o, const Settings& form, const char* message, bool error) {
           ssid, pass, (unsigned)form.channel, host);
 }
 
+// Blocks cross-site requests from web pages the phone opens over mobile data:
+// API calls must carry a custom header (browsers cannot add one without a
+// CORS preflight, which this server never approves) and form posts must not
+// come from another origin.
+constexpr const char* API_HEADER = "X-BMCam";
+
+bool hasApiHeader(httpd_req_t* req) {
+    return httpd_req_get_hdr_value_len(req, API_HEADER) > 0;
+}
+
+bool sameOrigin(httpd_req_t* req) {
+    char value[96];
+    const char* hdrs[] = {"Origin", "Referer"};
+    for (const char* h : hdrs) {
+        if (httpd_req_get_hdr_value_str(req, h, value, sizeof(value)) != ESP_OK) continue;
+        if (strncmp(value, "http://192.168.73.1", 19) != 0 ||
+            (value[19] != '\0' && value[19] != '/')) {
+            return false;
+        }
+    }
+    return true;
+}
+
+esp_err_t rejectCrossSite(httpd_req_t* req) {
+    ESP_LOGW(TAG, "rejected cross-site request to %s", req->uri);
+    httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "missing X-BMCam header or foreign origin");
+    return ESP_FAIL;
+}
+
 esp_err_t sendPage(httpd_req_t* req, const Settings& form, const char* message, bool error) {
     Out o{(char*)malloc(8192), 8192, 0};
     if (!o.buf) return httpd_resp_send_500(req);
@@ -143,6 +172,7 @@ esp_err_t handleRoot(httpd_req_t* req) {
 }
 
 esp_err_t handleSave(httpd_req_t* req) {
+    if (!sameOrigin(req)) return rejectCrossSite(req);
     char body[600];
     if (req->content_len >= sizeof(body)) {
         return sendPage(req, s_settings, "Забагато даних у формі", true);
@@ -217,6 +247,7 @@ esp_err_t handleLog(httpd_req_t* req) {
 }
 
 esp_err_t handleReboot(httpd_req_t* req) {
+    if (!hasApiHeader(req)) return rejectCrossSite(req);
     char query[32] = "", mode[8] = "";
     httpd_req_get_url_query_str(req, query, sizeof(query));
     httpd_query_key_value(query, "mode", mode, sizeof(mode));
@@ -234,6 +265,7 @@ esp_err_t handleReboot(httpd_req_t* req) {
 // POST /api/ota with the raw firmware.bin as the body. The new image boots
 // once; if it does not mark itself valid (main.cpp) the bootloader rolls back.
 esp_err_t handleOta(httpd_req_t* req) {
+    if (!hasApiHeader(req)) return rejectCrossSite(req);
     const esp_partition_t* part = esp_ota_get_next_update_partition(nullptr);
     if (!part || req->content_len == 0 || req->content_len > part->size) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad image size");

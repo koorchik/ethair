@@ -133,11 +133,19 @@ void renderPage(Out& o, const Settings& form, const char* message, bool error) {
 // come from another origin.
 constexpr const char* API_HEADER = "X-BMCam";
 
+// DNS rebinding guard: a foreign hostname resolving to us is not same-origin.
+bool hostOk(httpd_req_t* req) {
+    char h[32];
+    if (httpd_req_get_hdr_value_str(req, "Host", h, sizeof(h)) != ESP_OK) return false;
+    return strcmp(h, "192.168.73.1") == 0 || strcmp(h, "192.168.73.1:80") == 0;
+}
+
 bool hasApiHeader(httpd_req_t* req) {
-    return httpd_req_get_hdr_value_len(req, API_HEADER) > 0;
+    return hostOk(req) && httpd_req_get_hdr_value_len(req, API_HEADER) > 0;
 }
 
 bool sameOrigin(httpd_req_t* req) {
+    if (!hostOk(req)) return false;
     char value[96];
     const char* hdrs[] = {"Origin", "Referer"};
     for (const char* h : hdrs) {
@@ -247,7 +255,7 @@ esp_err_t handleLog(httpd_req_t* req) {
 }
 
 esp_err_t handleReboot(httpd_req_t* req) {
-    if (!hasApiHeader(req)) return rejectCrossSite(req);
+    if (!hasApiHeader(req) || !sameOrigin(req)) return rejectCrossSite(req);
     char query[32] = "", mode[8] = "";
     httpd_req_get_url_query_str(req, query, sizeof(query));
     httpd_query_key_value(query, "mode", mode, sizeof(mode));
@@ -265,7 +273,7 @@ esp_err_t handleReboot(httpd_req_t* req) {
 // POST /api/ota with the raw firmware.bin as the body. The new image boots
 // once; if it does not mark itself valid (main.cpp) the bootloader rolls back.
 esp_err_t handleOta(httpd_req_t* req) {
-    if (!hasApiHeader(req)) return rejectCrossSite(req);
+    if (!hasApiHeader(req) || !sameOrigin(req)) return rejectCrossSite(req);
     const esp_partition_t* part = esp_ota_get_next_update_partition(nullptr);
     if (!part || req->content_len == 0 || req->content_len > part->size) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad image size");

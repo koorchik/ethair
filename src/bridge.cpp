@@ -13,6 +13,8 @@
 #include "esp_timer.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+#include "freertos/task.h"
 #include "logic/forwarder.h"
 #include "logic/frame_info.h"
 #include "net_config.h"
@@ -44,6 +46,15 @@ PortMask route(Port in, const uint8_t* frame, size_t len) {
     return m;
 }
 
+// Frames for USB go through our own queue: tinyusb_net_send_async() may block
+// on TinyUSB's event queue, which must never stall the Wi-Fi task or lwIP.
+struct UsbFrame {
+    void* buf;
+    uint16_t len;
+};
+constexpr int USB_TX_QUEUE_LEN = 32;
+QueueHandle_t s_usbTxQueue = nullptr;
+
 void sendUsb(const void* frame, size_t len) {
     if (!s_usbUp || !tud_mounted()) return;
     void* buf = malloc(len);
@@ -52,9 +63,22 @@ void sendUsb(const void* frame, size_t len) {
         return;
     }
     memcpy(buf, frame, len);
-    if (tinyusb_net_send_async(buf, (uint16_t)len, buf) != ESP_OK) {
+    const UsbFrame f{buf, (uint16_t)len};
+    if (xQueueSend(s_usbTxQueue, &f, 0) != pdTRUE) {
         free(buf);
         ++s_drops;
+    }
+}
+
+void usbTxTask(void*) {
+    UsbFrame f;
+    while (true) {
+        if (xQueueReceive(s_usbTxQueue, &f, portMAX_DELAY) != pdTRUE) continue;
+        // On success and on TinyUSB's own drop path usbFreeTx() frees the buffer.
+        if (!tud_mounted() || tinyusb_net_send_async(f.buf, f.len, f.buf) != ESP_OK) {
+            free(f.buf);
+            ++s_drops;
+        }
     }
 }
 
@@ -225,6 +249,9 @@ esp_err_t startWifiAp(const Settings& s) {
 }
 
 esp_err_t startUsb() {
+    esp_log_level_set("tusb_net", ESP_LOG_ERROR);  // per-drop warnings would stall USB
+    s_usbTxQueue = xQueueCreate(USB_TX_QUEUE_LEN, sizeof(UsbFrame));
+    xTaskCreate(usbTxTask, "usb_tx", 3072, nullptr, 6, nullptr);
     tinyusb_config_t tcfg = TINYUSB_DEFAULT_CONFIG(usbEvent, nullptr);
     ESP_ERROR_CHECK(tinyusb_driver_install(&tcfg));
     tinyusb_net_config_t ncfg = {};

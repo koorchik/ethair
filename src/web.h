@@ -12,3 +12,8 @@
 //   POST /api/ota      body = firmware.bin; flashes the other slot and restarts
 // The two POST /api/ calls require the header "X-BMCam: 1" (CSRF guard).
 void webStart(const Settings& current);
+
+// Number of HTTP requests served since boot.
+uint32_t webRequestCount();
+// True while the running image is a fresh OTA that has not been confirmed.
+bool webOtaPending();

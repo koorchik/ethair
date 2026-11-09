@@ -34,6 +34,11 @@ const char* typeName(uint8_t t) {
     }
 }
 
+const char* replyName(const uint8_t* pkt, size_t len) {
+    const uint8_t* v = nullptr;
+    return dhcpFindOption(pkt, len, 53, &v) == 1 ? typeName(v[0]) : "?";
+}
+
 void task(void*) {
     const int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (sock < 0) {
@@ -56,7 +61,7 @@ void task(void*) {
     }
     ESP_LOGI(TAG, "server listening");
 
-    static uint8_t in[600];
+    static uint8_t in[1500];
     static uint8_t out[DHCP_REPLY_CAP];
     sockaddr_in to = {};
     to.sin_family = AF_INET;
@@ -81,7 +86,7 @@ void task(void*) {
         ESP_LOGI(TAG, "%s from %02x:%02x:%02x:%02x:%02x:%02x (%s%s%s) -> %s %s",
                  typeName(info.type), m[0], m[1], m[2], m[3], m[4], m[5],
                  fromCamera ? "camera" : "wifi", info.hostname[0] ? ", " : "", info.hostname,
-                 len ? typeName(out[242]) : "no reply", len ? ip : "");
+                 len ? replyName(out, len) : "no reply", len ? ip : "");
         if (len) sendto(sock, out, len, 0, (sockaddr*)&to, sizeof(to));
     }
 }

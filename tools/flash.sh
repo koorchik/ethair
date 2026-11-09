@@ -19,12 +19,13 @@ BIN=".pio/build/$ENV_NAME/firmware.bin"
 if [[ "$FORCE_USB" != "--usb" ]] && curl -s -m 2 "$ADAPTER/api/status" >/dev/null; then
     echo "Adapter found at $ADAPTER, updating over the network..."
     curl -sS -m 180 -H 'X-BMCam: 1' -H 'Content-Type: application/octet-stream' --data-binary @"$BIN" "$ADAPTER/api/ota"
-    echo "Waiting for the adapter to come back..."
-    for _ in $(seq 1 30); do
+    echo "Waiting for the new firmware to start and confirm itself (~30 s)..."
+    for _ in $(seq 1 45); do
         sleep 2
-        if curl -s -m 2 "$ADAPTER/api/status"; then echo; exit 0; fi
+        status="$(curl -s -m 2 "$ADAPTER/api/status" || true)"
+        if [[ "$status" == *'"ota_pending":false'* ]]; then echo "$status"; exit 0; fi
     done
-    echo "Adapter did not come back within 60 s" >&2
+    echo "New firmware did not confirm within 90 s; it will roll back on the next restart" >&2
     exit 1
 fi
 

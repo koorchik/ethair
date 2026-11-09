@@ -1,5 +1,6 @@
 #include "web.h"
 
+#include <atomic>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
@@ -22,6 +23,7 @@
 namespace {
 const char* TAG = "web";
 Settings s_settings;
+std::atomic<uint32_t> s_requests{0};
 
 struct Out {
     char* buf;
@@ -178,10 +180,12 @@ esp_err_t sendPage(httpd_req_t* req, const Settings& form, const char* message, 
 }
 
 esp_err_t handleRoot(httpd_req_t* req) {
+    ++s_requests;
     return sendPage(req, s_settings, nullptr, false);
 }
 
 esp_err_t handleSave(httpd_req_t* req) {
+    ++s_requests;
     if (!sameOrigin(req)) return rejectCrossSite(req);
     char body[600];
     if (req->content_len >= sizeof(body)) {
@@ -219,6 +223,7 @@ esp_err_t handleSave(httpd_req_t* req) {
 }
 
 esp_err_t handleStatus(httpd_req_t* req) {
+    ++s_requests;
     BridgeStatus st;
     bridgeStatus(st);
     char cam[16], seen[16], ssid[SSID_MAX * 6 + 1], host[HOSTNAME_MAX * 6 + 1];
@@ -235,18 +240,19 @@ esp_err_t handleStatus(httpd_req_t* req) {
              "\"mdns\":\"%s\",\"camera_hostname\":\"%s\",\"wifi_clients\":%d,\"ssid\":\"%s\","
              "\"channel\":%u,\"uptime_s\":%llu,\"frames\":{\"usb_to_wifi\":%lu,"
              "\"wifi_to_usb\":%lu,\"to_adapter\":%lu,\"from_adapter\":%lu,\"dropped\":%lu},"
-             "\"free_heap\":%lu}",
+             "\"free_heap\":%lu,\"ota_pending\":%s}",
              st.usbMounted ? "true" : "false", cameraIpForClients() ? cam : "",
              st.cameraSeenIp ? seen : "", mdns, host, st.wifiClients, ssid,
              (unsigned)s_settings.channel, (unsigned long long)(esp_timer_get_time() / 1000000),
              (unsigned long)st.usbToWifi, (unsigned long)st.wifiToUsb, (unsigned long)st.toLocal,
              (unsigned long)st.fromLocal, (unsigned long)st.drops,
-             (unsigned long)esp_get_free_heap_size());
+             (unsigned long)esp_get_free_heap_size(), webOtaPending() ? "true" : "false");
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_sendstr(req, json);
 }
 
 esp_err_t handleLog(httpd_req_t* req) {
+    ++s_requests;
     char* buf = (char*)malloc(8200);
     if (!buf) return httpd_resp_send_500(req);
     const size_t n = logBufferRead(buf, 8200);
@@ -257,6 +263,7 @@ esp_err_t handleLog(httpd_req_t* req) {
 }
 
 esp_err_t handleReboot(httpd_req_t* req) {
+    ++s_requests;
     if (!hasApiHeader(req) || !sameOrigin(req)) return rejectCrossSite(req);
     char query[32] = "", mode[8] = "";
     httpd_req_get_url_query_str(req, query, sizeof(query));
@@ -275,6 +282,7 @@ esp_err_t handleReboot(httpd_req_t* req) {
 // POST /api/ota with the raw firmware.bin as the body. The new image boots
 // once; if it does not mark itself valid (main.cpp) the bootloader rolls back.
 esp_err_t handleOta(httpd_req_t* req) {
+    ++s_requests;
     if (!hasApiHeader(req) || !sameOrigin(req)) return rejectCrossSite(req);
     const esp_partition_t* part = esp_ota_get_next_update_partition(nullptr);
     if (!part || req->content_len == 0 || req->content_len > part->size) {
@@ -289,13 +297,15 @@ esp_err_t handleOta(httpd_req_t* req) {
     char* buf = (char*)malloc(4096);
     size_t left = req->content_len;
     esp_err_t err = buf ? ESP_OK : ESP_ERR_NO_MEM;
+    int timeouts = 0;
     while (err == ESP_OK && left > 0) {
         const int n = httpd_req_recv(req, buf, left < 4096 ? left : 4096);
-        if (n == HTTPD_SOCK_ERR_TIMEOUT) continue;
+        if (n == HTTPD_SOCK_ERR_TIMEOUT && ++timeouts < 5) continue;  // client gone: give up
         if (n <= 0) {
             err = ESP_FAIL;
             break;
         }
+        timeouts = 0;
         err = esp_ota_write(ota, buf, (size_t)n);
         left -= (size_t)n;
     }
@@ -315,11 +325,23 @@ esp_err_t handleOta(httpd_req_t* req) {
 }
 }  // namespace
 
+uint32_t webRequestCount() {
+    return s_requests;
+}
+
+bool webOtaPending() {
+    esp_ota_img_states_t st;
+    const esp_partition_t* running = esp_ota_get_running_partition();
+    return running && esp_ota_get_state_partition(running, &st) == ESP_OK &&
+           st == ESP_OTA_IMG_PENDING_VERIFY;
+}
+
 void webStart(const Settings& current) {
     s_settings = current;
     httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
     cfg.stack_size = 8192;
     cfg.lru_purge_enable = true;
+    cfg.max_open_sockets = 4;  // leaves lwIP sockets for DHCP and mDNS
     httpd_handle_t server = nullptr;
     if (httpd_start(&server, &cfg) != ESP_OK) {
         ESP_LOGE(TAG, "httpd_start failed");

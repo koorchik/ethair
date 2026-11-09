@@ -122,9 +122,11 @@ extern "C" void app_main(void) {
     DisplayModel m = {};
     while (true) {
         const int64_t ms = esp_timer_get_time() / 1000;
-        if (!otaConfirmed && ms >= OTA_CONFIRM_MS) {
-            // A freshly updated image that got this far keeps its slot;
-            // one that crashes earlier is rolled back by the bootloader.
+        if (!otaConfirmed && ms >= OTA_CONFIRM_MS && webRequestCount() > 0) {
+            // A fresh image keeps its slot only once it has run 30 s and
+            // actually served HTTP (tools/flash.sh polls /api/status). One
+            // that crashes or never serves is rolled back on the next reset.
+            if (webOtaPending()) ESP_LOGI(TAG, "new firmware confirmed");
             esp_ota_mark_app_valid_cancel_rollback();
             otaConfirmed = true;
         }

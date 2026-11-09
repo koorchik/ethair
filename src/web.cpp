@@ -149,7 +149,9 @@ bool sameOrigin(httpd_req_t* req) {
     char value[96];
     const char* hdrs[] = {"Origin", "Referer"};
     for (const char* h : hdrs) {
-        if (httpd_req_get_hdr_value_str(req, h, value, sizeof(value)) != ESP_OK) continue;
+        const esp_err_t e = httpd_req_get_hdr_value_str(req, h, value, sizeof(value));
+        if (e == ESP_ERR_NOT_FOUND) continue;  // curl and other non-browser clients
+        if (e != ESP_OK) return false;         // e.g. truncated: fail closed
         if (strncmp(value, "http://192.168.73.1", 19) != 0 ||
             (value[19] != '\0' && value[19] != '/')) {
             return false;

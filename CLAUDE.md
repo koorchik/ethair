@@ -38,7 +38,7 @@ tools/flash.sh [cardputer|generic] [--usb]       # OTA when 192.168.73.1 answers
    the bootloader rolls back. `tools/flash.sh` waits for `"ota_pending":false`.
 2. **Safe mode** (`POST /api/reboot?mode=safe`): USB becomes the serial/JTAG port for 3 min;
    then `tools/flash.sh … --usb`.
-3. **ROM download** by hand: power switch off, hold G0, switch on. After a serial flash from this
+3. **ROM download** by hand: unplug, power switch off, hold G0 while plugging the USB cable in (with the cable already in, the switch does not cut power). After a serial flash from this
    state a USB reset does not re‑read the G0 strap → power‑cycle afterwards.
 
 When the board sits in a camera, reach it through a phone on its Wi‑Fi with adb:

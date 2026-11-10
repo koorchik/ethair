@@ -56,13 +56,13 @@ computer and follow the three steps there. Nothing to install.
 
 Download `ethair-cardputer-vX.Y.Z-full.bin` (or `ethair-generic-…` for other boards) from the
 [latest release](https://github.com/koorchik/ethair/releases/latest), put the board into download
-mode (Cardputer: power switch off, hold **G0**, switch on, release), then:
+mode (unplug it; Cardputer: power switch OFF; hold **G0** while plugging the USB cable in), then:
 
 ```bash
 esptool.py --chip esp32s3 write_flash 0x0 ethair-cardputer-v1.0.0-full.bin
 ```
 
-Switch the board off and on again afterwards.
+Unplug the cable and plug it in again afterwards.
 
 ### M5Burner
 
@@ -162,8 +162,8 @@ tools/publish-flasher.sh          # browser installer to GitHub Pages
 
 While the firmware runs, the USB‑C port is a network card, not a serial port. To flash over USB:
 `curl -X POST -H "X-EthAir: 1" "http://192.168.73.1/api/reboot?mode=safe"` (USB becomes a serial
-port for 3 minutes), or the download mode by hand (power off, hold G0, power on), then
-`tools/flash.sh cardputer --usb` and switch off and on again.
+port for 3 minutes), or the download mode by hand (unplugged, power switch OFF, hold G0 while plugging in), then
+`tools/flash.sh cardputer --usb` and unplug and plug in again.
 
 | Path | Role |
 |---|---|

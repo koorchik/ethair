@@ -59,7 +59,7 @@ Download `ethair-cardputer-vX.Y.Z-full.bin` (or `ethair-generic-…` for other b
 mode (unplug it; Cardputer: power switch OFF; hold **G0** while plugging the USB cable in), then:
 
 ```bash
-esptool.py --chip esp32s3 write_flash 0x0 ethair-cardputer-v1.0.0-full.bin
+esptool.py --chip esp32s3 write_flash 0x0 ethair-cardputer-v1.0.1-full.bin
 ```
 
 Unplug the cable and plug it in again afterwards.
@@ -117,7 +117,7 @@ settings page too.
 From a computer or phone on the adapter's USB or Wi‑Fi network:
 
 ```bash
-curl -H "X-EthAir: 1" --data-binary @ethair-cardputer-v1.0.0-ota.bin http://192.168.73.1/api/ota
+curl -H "X-EthAir: 1" --data-binary @ethair-cardputer-v1.0.1-ota.bin http://192.168.73.1/api/ota
 ```
 
 A new image keeps its place only after it has run for 30 s and served a request; otherwise the

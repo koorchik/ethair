@@ -9,7 +9,7 @@ release (`tools/release.sh` → `dist/`); it is flashed at 0x0.
 | Version | 1.0.0 |
 | Device type | Cardputer-ADV (also works on the original Cardputer; other ESP32‑S3 boards: use the `generic` image from GitHub) |
 | GitHub | https://github.com/koorchik/ethair |
-| Firmware | `ethair-cardputer-v1.0.0-full.bin` |
+| Firmware | `ethair-cardputer-v1.0.1-full.bin` |
 | Cover | `docs/m5burner/cover.png` (800 × 450, `tools/m5burner_cover.py`) |
 
 ## Description

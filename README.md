@@ -113,16 +113,6 @@ While the firmware runs, the USB‑C port is a network card, not a serial port. 
    download mode. Then `tools/flash.sh cardputer --usb`, then switch off and on again (without G0):
    a reset from the computer does not re‑read the G0 strap.
 
-## Restoring the Molfar game
-
-A full flash backup was taken before the first flash: `backups/cardputer-before-bmcam-full.bin`
-(not in git). To restore:
-
-```bash
-~/.platformio/penv/bin/python ~/.platformio/packages/tool-esptoolpy/esptool.py \
-  --chip esp32s3 --port /dev/ttyACM0 write_flash 0 backups/cardputer-before-bmcam-full.bin
-```
-
 ## Layout
 
 | File | Role |

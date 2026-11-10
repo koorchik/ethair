@@ -8,7 +8,7 @@ void tearDown(void) {}
 
 static const DhcpConfig CFG = {
     ipv4(192, 168, 73, 1), ipv4(255, 255, 255, 0), ipv4(192, 168, 73, 2),
-    ipv4(192, 168, 73, 10), ipv4(192, 168, 73, 50), 3600,
+    ipv4(192, 168, 73, 10), ipv4(192, 168, 73, 50), 3600, 0,
 };
 
 static const uint8_t DEVICE[6] = {0x7C, 0x2E, 0x0D, 0x11, 0x22, 0x33};
@@ -98,6 +98,26 @@ void test_reply_has_mask_lease_server_but_no_router_or_dns(void) {
     TEST_ASSERT_EQUAL_INT(4, dhcpFindOption(out, n, 51, &v));
     TEST_ASSERT_EQUAL_INT(-1, dhcpFindOption(out, n, 3, &v));
     TEST_ASSERT_EQUAL_INT(-1, dhcpFindOption(out, n, 6, &v));
+}
+
+void test_router_option_when_configured(void) {
+    DhcpConfig withRouter = CFG;
+    withRouter.router = ipv4(192, 168, 73, 1);
+    DhcpServer s(withRouter);
+    size_t n = s.handle(req, mkReq(DHCP_DISCOVER, PHONE), false, 100, out, sizeof(out));
+    const uint8_t* v = nullptr;
+    TEST_ASSERT_EQUAL_INT(4, dhcpFindOption(out, n, 3, &v));
+    TEST_ASSERT_EQUAL_UINT8(1, v[3]);
+    TEST_ASSERT_EQUAL_INT(-1, dhcpFindOption(out, n, 6, &v));
+}
+
+void test_usb_device_never_gets_router(void) {
+    DhcpConfig withRouter = CFG;
+    withRouter.router = ipv4(192, 168, 73, 1);
+    DhcpServer s(withRouter);
+    size_t n = s.handle(req, mkReq(DHCP_DISCOVER, DEVICE), true, 100, out, sizeof(out));
+    const uint8_t* v = nullptr;
+    TEST_ASSERT_EQUAL_INT(-1, dhcpFindOption(out, n, 3, &v));
 }
 
 void test_phone_gets_pool_ip_and_ack(void) {
@@ -239,6 +259,8 @@ int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(test_device_discover_gets_fixed_ip);
     RUN_TEST(test_reply_has_mask_lease_server_but_no_router_or_dns);
+    RUN_TEST(test_router_option_when_configured);
+    RUN_TEST(test_usb_device_never_gets_router);
     RUN_TEST(test_phone_gets_pool_ip_and_ack);
     RUN_TEST(test_two_phones_get_different_ips);
     RUN_TEST(test_request_for_foreign_ip_is_naked);

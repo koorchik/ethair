@@ -93,7 +93,11 @@ void task(void*) {
 }  // namespace
 
 void dhcpTaskStart() {
-    static const DhcpConfig cfg = {ADAPTER_IP, NETMASK, DEVICE_IP, POOL_START, POOL_END, LEASE_SECS};
+    // Android only treats a Wi-Fi network as usable for apps when it has a
+    // default route, so Wi-Fi clients get the adapter as gateway (the USB
+    // device never does). No DNS is sent.
+    static const DhcpConfig cfg = {ADAPTER_IP, NETMASK, DEVICE_IP, POOL_START, POOL_END, LEASE_SECS,
+                                   ADAPTER_IP};
     s_server = new DhcpServer(cfg);
     s_lock = xSemaphoreCreateMutex();
     xTaskCreate(task, "dhcp", 4096, nullptr, 5, nullptr);

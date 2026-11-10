@@ -37,6 +37,7 @@ struct DhcpConfig {
     uint32_t poolStart;  // inclusive
     uint32_t poolEnd;    // inclusive
     uint32_t leaseSecs;
+    uint32_t router;     // option 3 for Wi-Fi clients only, 0 = not sent
 };
 
 struct DhcpLease {

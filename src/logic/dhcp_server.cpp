@@ -18,6 +18,7 @@ constexpr uint8_t MAGIC[4] = {0x63, 0x82, 0x53, 0x63};
 
 constexpr uint8_t OPT_PAD = 0;
 constexpr uint8_t OPT_SUBNET = 1;
+constexpr uint8_t OPT_ROUTER = 3;
 constexpr uint8_t OPT_HOSTNAME = 12;
 constexpr uint8_t OPT_REQUESTED_IP = 50;
 constexpr uint8_t OPT_LEASE_TIME = 51;
@@ -254,6 +255,9 @@ size_t DhcpServer::handle(const uint8_t* in, size_t inLen, bool fromDevice, uint
     if (replyType != DHCP_NAK) {
         if (withLease) w.put32(OPT_LEASE_TIME, cfg_.leaseSecs);
         w.put32(OPT_SUBNET, cfg_.netmask);
+        // Only Wi-Fi clients get a gateway. The USB device (a camera, or a
+        // computer used for setup) must never route its internet here.
+        if (cfg_.router && !fromDevice) w.put32(OPT_ROUTER, cfg_.router);
     }
     if (!w.ok) return 0;
     out[OFF_OPTIONS + w.len] = OPT_END;

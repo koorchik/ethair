@@ -21,14 +21,20 @@ device = 192.168.73.2                 phones = 192.168.73.10–50
    MAC address; the Cardputer shows it on screen).
 4. Reach the device at **`192.168.73.2`** — it always gets this address.
 
-The adapter does not pretend to be an internet gateway (DHCP hands out no router and no DNS),
-so phones keep using mobile data for the internet.
+Wi‑Fi clients get the adapter as their gateway (Android ignores Wi‑Fi networks without a default
+route), but the adapter has no internet and hands out no DNS. The USB device never gets a gateway,
+so a computer used for setup keeps its own internet.
 
 **Apps on the phone:**
 - **iOS** — the app needs the *Local Network* permission.
-- **Android** — Android treats a Wi‑Fi without internet as "not validated" and sends traffic over
-  mobile data by default. The app must bind to the Wi‑Fi network
+- **Android** — Android treats a Wi‑Fi without internet as "not validated". With mobile data on it
+  keeps mobile data as the default network, so the app must bind to the Wi‑Fi network
   (`ConnectivityManager.bindProcessToNetwork` or `Network.socketFactory`) to reach `192.168.73.2`.
+  With mobile data off, the Wi‑Fi becomes the default network.
+- **Chrome on Android** may refuse local pages on a network without internet
+  (`ERR_TOO_MANY_RETRIES`, "No internet" banner) even when the network works. Samsung Internet
+  and apps open them fine. Verified on a Galaxy S24 Ultra: the settings page loads, and a
+  2 MB download from the USB side ran at ~585 KB/s.
 
 ## Cardputer screen
 

@@ -1,176 +1,178 @@
-# EthAir: USB Ethernet → Wi‑Fi bridge
+# EthAir
 
-Firmware for an ESP32‑S3 (currently the M5Stack Cardputer ADV, later any ESP32‑S3 board with a
-button). Plug it into any device with a USB host port that supports USB Ethernet adapters — for
-example a Blackmagic Micro Studio Camera 4K G2 — and it powers itself from that port, shows up
-there as a USB Ethernet adapter, and bridges that link to its own Wi‑Fi network. A phone on that
-Wi‑Fi sees the device as if both were plugged into the same switch: mDNS discovery and direct IP
-access both work.
+**A USB Ethernet adapter that bridges to its own Wi‑Fi, on an ESP32‑S3.**
 
-```
-device ──USB (CDC-NCM)──> [ESP32-S3: L2 bridge + DHCP] <──Wi-Fi── phone
-                             192.168.73.1
-device = 192.168.73.2                 phones = 192.168.73.10–50
-```
+Plug it into a camera (or anything with a USB host port that takes USB Ethernet adapters), join
+its Wi‑Fi from a phone, and reach the device as if both were on the same switch: direct IP, mDNS
+discovery, REST APIs, WebSockets. It runs from the device's own USB port. Built for the M5Stack
+Cardputer and any bare ESP32‑S3 board.
 
-## Using it
-
-1. Set the USB device's network settings to **DHCP**.
-2. Plug EthAir into the device's USB port.
-3. Join the Wi‑Fi network **`EthAir-XXXX`** with password **`ethair123`** (XXXX is the end of the
-   MAC address; the Cardputer shows it on screen).
-4. Reach the device at **`192.168.73.2`** — it always gets this address.
-
-The adapter hands out no gateway and no DNS: its network has no internet. The USB device never
-gets a gateway either, so a computer used for setup keeps its own internet.
-
-**Apps on the phone:**
-- **iOS** — the app needs the *Local Network* permission.
-- **Android 17+** — an app needs the **Nearby devices** permission (`ACCESS_LOCAL_NETWORK`) to
-  reach local addresses at all. Chrome without it fails with `ERR_TOO_MANY_RETRIES`:
-  Settings → Apps → Chrome → Permissions → Nearby devices → Allow.
-- **Android, which network is "main"** — Android asks whether to stay on a Wi‑Fi without internet.
-  If you keep it, EthAir becomes the main network: every app and browser reaches the device, but
-  the phone has no internet while connected. If not, mobile data stays main: the internet works,
-  and only apps that bind to the Wi‑Fi network (`ConnectivityManager.bindProcessToNetwork` or
-  `Network.socketFactory`) reach the device. The adapter cannot change this choice.
-- Verified on a Galaxy S24 Ultra (Android 17): settings page in Chrome and Samsung Internet,
-  phone → adapter → USB host HTTP, ~585 KB/s for a 2 MB download.
-
-**Cardputer with a camera: keep the Cardputer's power switch OFF.** With the battery on, the
-Cardputer puts its own 5 V on the USB‑C port and the Blackmagic camera then never starts its USB
-host, so the screen stays at `USB: no device`; after 15 s without a USB host the screen says
-`USB: no camera data` / `CARDPUTER's own switch OFF? Data cable?` (a charge‑only cable or a loose plug looks the same to the
-board). Switched off, the Cardputer runs from the camera's port and
-is found within ~20 s of plugging in. (A computer does not mind either way. A bare ESP32‑S3 board
-without a battery is not affected.)
-
-## Cardputer screen
+<p align="center">
+  <img src="docs/images/ethair-ready.png" width="420" alt="Cardputer screen: Wi-Fi name, password, settings address, USB device connected at 192.168.73.2, one Wi-Fi client">
+</p>
 
 ```
-EthAir-1C25                ← Wi-Fi name
-pass ethair123             ← Wi-Fi password
-cfg http://192.168.73.1    ← settings page
-USB: device OK             ← USB device connected
-dev 192.168.73.2           ← device IP (red if the device has a static IP from another network)
-wifi clients 1
-Hold G0 5s: factory reset
+ camera / USB host ──USB‑C (CDC‑NCM)──▶ [ EthAir ] ◀──Wi‑Fi── phone, tablet, laptop
+   192.168.73.2                         192.168.73.1           192.168.73.10–50
 ```
 
-## Settings
+Tested with a Blackmagic Micro Studio Camera 4K G2: its REST API and mDNS name work from a phone
+over Wi‑Fi.
 
-Open `http://192.168.73.1/` from a phone or computer on the adapter's network: status, the
-address plan, Wi‑Fi name, password, channel and the optional mDNS fallback name. Saving restarts
-the adapter.
+**With a Blackmagic camera:** EthAir is the missing link for **[CamCtrl](https://camctrl.app/)**,
+the full remote app for Blackmagic cameras (focus, exposure, colour, audio, media, monitoring).
+The camera only offers its control API over USB Ethernet; EthAir puts it on Wi‑Fi:
 
-**Forgot the password?** On the Cardputer it is always on screen. On any board: hold **G0** for
-5 seconds. Settings are erased and the adapter restarts as `EthAir-XXXX` / `ethair123`.
+```mermaid
+flowchart LR
+    cam["Blackmagic camera<br/>192.168.73.2"]
+    ea["EthAir<br/>192.168.73.1"]
+    app["CamCtrl app<br/>camctrl.app"]
+    cam <-- "USB‑C cable<br/>(USB Ethernet)" --> ea
+    ea <-- "Wi‑Fi EthAir‑XXXX" --> app
+```
 
-## mDNS
+Want a pocket remote on the Cardputer itself as well? See
+**[CamCtrl Cardputer](https://github.com/koorchik/camctrl-cardputer)**: EthAir plus a handheld
+remote UI, working side by side with the app.
 
-mDNS passes through the bridge untouched, so a device that announces itself (e.g.
-`micro-studio-camera-4k-g2.local`) is discoverable from the phone as usual.
+## Install
 
-If the device does not answer for its name over USB Ethernet, set the **mDNS fallback name** on the
-settings page (e.g. `micro-studio-camera-4k-g2`). The adapter then checks every 30 s whether the
-device answers for that name and, only while it stays silent, answers on its behalf with the
-device's IP. Empty (the default) turns this off. State: `"mdns": "off" | "device" | "adapter" |
-"no_device"` in `/api/status`.
+### In the browser (easiest)
 
-## API
+Open **[koorchik.github.io/ethair](https://koorchik.github.io/ethair/)** in Chrome or Edge on a
+computer and follow the three steps there. Nothing to install.
 
-| Method | Path | What it does |
-|---|---|---|
-| GET | `/api/status` | JSON: USB link, device IP, Wi‑Fi clients, frame counters, OTA state |
-| GET | `/api/log` | last ~8 KB of logs (USB is busy being a network card, so there is no serial console) |
-| POST | `/api/ota` | body = `firmware.bin`; network update with automatic rollback |
-| POST | `/api/reboot?mode=normal\|safe\|download` | restart; `safe`/`download` hand USB back for flashing |
+### With esptool
 
-Both POST calls need the header `X-EthAir: 1` and the host `192.168.73.1`. This blocks web pages
-the phone opens over mobile data from posting to the adapter (CSRF, DNS rebinding).
-
-## Installing a release
-
-`tools/release.sh` builds the release files into `dist/` (they are also attached to the GitHub
-release), with `SHA256SUMS`:
-
-- `ethair-cardputer-v1.0.0-full.bin`: whole image for a new board, flashed over USB at `0x0`.
-- `ethair-cardputer-v1.0.0-ota.bin`: update for a board that already runs EthAir.
-- `ethair-generic-v1.0.0-full.bin`: whole image for a new board, flashed over USB at `0x0`.
-- `ethair-generic-v1.0.0-ota.bin`: update for a board that already runs EthAir.
-
-**New board:** start the ROM download mode (Cardputer: power switch off, hold **G0**, switch on,
-release), then write the full image at address `0x0`:
+Download `ethair-cardputer-vX.Y.Z-full.bin` (or `ethair-generic-…` for other boards) from the
+[latest release](https://github.com/koorchik/ethair/releases/latest), put the board into download
+mode (Cardputer: power switch off, hold **G0**, switch on, release), then:
 
 ```bash
 esptool.py --chip esp32s3 write_flash 0x0 ethair-cardputer-v1.0.0-full.bin
 ```
 
-(or in the browser with Espressif's esptool‑js flasher, address `0x0`). Switch off and on again
-afterwards; the settings start at the factory defaults.
+Switch the board off and on again afterwards.
 
-**Update:** from a computer or phone connected to the adapter (USB or its Wi‑Fi):
+### M5Burner
+
+Search for **EthAir** in M5Burner's Cardputer section (once it is published there).
+
+## Use
+
+1. Set the USB device's network to **DHCP**.
+2. **Cardputer: set its own power switch OFF**, then plug it into the device. It runs from the
+   device's USB port. (With the battery on, the Cardputer puts 5 V on the port and a Blackmagic
+   camera never starts its USB host.)
+3. Join the Wi‑Fi **`EthAir-XXXX`**, password **`ethair123`** (both are on the Cardputer screen).
+4. The device is always at **`192.168.73.2`**. Settings: **`http://192.168.73.1`**.
+
+| Waiting for a device | Device connected | No USB data after 15 s |
+|---|---|---|
+| ![](docs/images/ethair-waiting.png) | ![](docs/images/ethair-ready.png) | ![](docs/images/ethair-no-usb.png) |
+
+The adapter hands out **no gateway and no DNS**, so phones keep their mobile internet and a
+computer on the USB side keeps its own internet.
+
+## Settings and reset
+
+`http://192.168.73.1/` shows the status (USB device, its IP, Wi‑Fi clients, firmware version) and
+lets you change the Wi‑Fi name, password and channel. Saving restarts the adapter.
+
+**Factory reset:** hold **G0** (or the button on GPIO0) for 5 seconds. The adapter comes back as
+`EthAir-XXXX` / `ethair123`. Change the password if strangers may be nearby: it protects the
+settings page too.
+
+## Phones
+
+- **iOS:** the app needs the *Local Network* permission.
+- **Android 17+:** apps need the **Nearby devices** permission to open local addresses. Chrome
+  without it fails with `ERR_TOO_MANY_RETRIES` (Settings → Apps → Chrome → Permissions → Nearby
+  devices → Allow).
+- **Android and "no internet" Wi‑Fi:** if Android keeps mobile data as the main network, only apps
+  that bind to the Wi‑Fi (`bindProcessToNetwork`) reach the device; browsers reach it once you tell
+  Android to stay on the Wi‑Fi. The adapter cannot choose this for the phone.
+
+## Troubleshooting
+
+| What you see | What to do |
+|---|---|
+| Cardputer: `USB: no camera data` | Cardputer power switch **OFF**; use a USB‑C **data** cable (not charge‑only); push the plug in firmly or flip it. |
+| `dev 10.x.x.x set DHCP!` in red | The device has a static IP. Switch its network settings to DHCP. |
+| Phone joined, but the page does not open | See *Phones* above (permission, mobile data). |
+| Forgot the Wi‑Fi password | Cardputer: it is on the screen. Any board: factory reset. |
+
+## Updating
+
+From a computer or phone on the adapter's USB or Wi‑Fi network:
 
 ```bash
 curl -H "X-EthAir: 1" --data-binary @ethair-cardputer-v1.0.0-ota.bin http://192.168.73.1/api/ota
 ```
 
-The installed version is shown on the settings page and in `/api/status` (`"version"`).
+A new image keeps its place only after it has run for 30 s and served a request; otherwise the
+board rolls back to the previous version by itself.
 
-## Building and flashing
+## Under the hood
 
-Needs PlatformIO. The framework is ESP‑IDF 6.1 (not Arduino: Arduino 2.0.17 has no TinyUSB network
-class).
+- **Layer‑2 bridge** between TinyUSB CDC‑NCM, the Wi‑Fi access point and the adapter's own lwIP
+  interface, so broadcast and multicast (mDNS) pass in both directions.
+- **Own DHCP server:** the USB device always gets `.2`; Wi‑Fi clients `.10–.50`; no gateway, no DNS.
+- **No remote wakeup** in the USB descriptor: with it, the camera's Linux autosuspended the idle
+  adapter and frames were lost. Without VBUS sensing a pulled cable looks like a bus suspend, so
+  the adapter re‑attaches itself.
+- **Self‑healing:** OTA with automatic rollback, restart on low memory, safe mode after two crashes
+  in a row (USB becomes a serial port for 3 minutes so the board can be reflashed without buttons).
+- **Optional mDNS fallback:** if a device does not answer for its own name over USB Ethernet, the
+  adapter can answer for it (settings page, off by default).
+- **Web security:** API calls need the `X-EthAir: 1` header and the host `192.168.73.1` (blocks
+  cross‑site requests and DNS rebinding from pages the phone opens over mobile data).
+
+### API
+
+| Method | Path | |
+|---|---|---|
+| GET | `/api/status` | JSON: USB link, device IP, Wi‑Fi clients, frame counters, heap, OTA state, version |
+| GET | `/api/log` | last ~8 KB of the log (there is no serial console while USB is a network card) |
+| POST | `/api/ota` | body = `*-ota.bin`; update with automatic rollback |
+| POST | `/api/reboot?mode=normal\|safe\|download` | restart; `safe` / `download` hand USB back for flashing |
+
+## Building
+
+ESP‑IDF 6.1 through PlatformIO (not Arduino: Arduino‑ESP32 2.x has no TinyUSB network class).
 
 ```bash
-pio test -e native                # unit tests for the pure logic (DHCP, bridge, mDNS, settings…)
-pio run -e cardputer              # Cardputer ADV (screen + G0)
-pio run -e generic                # bare ESP32-S3, button on GPIO0 (BOARD_BUTTON_GPIO)
-tools/flash.sh                    # build and flash: over the network (OTA) if reachable, else USB
-tools/flash.sh cardputer --usb    # force USB serial
+pio test -e native                # unit tests for the pure logic
+pio run -e cardputer              # Cardputer (screen + G0)
+pio run -e generic                # bare ESP32-S3, button on GPIO0
+tools/flash.sh                    # build and flash: OTA if 192.168.73.1 answers, else USB serial
+tools/release.sh                  # release images into dist/ (full + OTA, SHA256SUMS)
+tools/publish-flasher.sh          # browser installer to GitHub Pages
 ```
 
-While the firmware runs, the USB‑C port is a network card, not a serial port. Ways to re‑flash:
+While the firmware runs, the USB‑C port is a network card, not a serial port. To flash over USB:
+`curl -X POST -H "X-EthAir: 1" "http://192.168.73.1/api/reboot?mode=safe"` (USB becomes a serial
+port for 3 minutes), or the download mode by hand (power off, hold G0, power on), then
+`tools/flash.sh cardputer --usb` and switch off and on again.
 
-1. **Over the network (normal):** a computer connected to the adapter over USB or Wi‑Fi reaches
-   `192.168.73.1`, and `tools/flash.sh` uploads via `/api/ota`. A new image is kept only after it
-   has run for 30 s and served an HTTP request; otherwise the bootloader rolls back (an image that
-   has not confirmed itself within 90 s restarts on its own to roll back). The firmware also
-   restarts if its free heap stays below 12 KB for 20 s; `/api/status` reports `min_free_heap`.
-2. **Safe mode:** `curl -X POST -H "X-EthAir: 1" "http://192.168.73.1/api/reboot?mode=safe"` — the
-   board restarts with USB as a serial port (`/dev/ttyACM0`), then `tools/flash.sh cardputer --usb`.
-   Without flashing, safe mode returns to normal by itself after 3 minutes. Two crashes in a row
-   also start safe mode.
-3. **By hand (always works):** switch the Cardputer off, hold **G0**, switch on, release — the ROM
-   download mode. Then `tools/flash.sh cardputer --usb`, then switch off and on again (without G0):
-   a reset from the computer does not re‑read the G0 strap.
-
-## Layout
-
-| File | Role |
+| Path | Role |
 |---|---|
-| `src/bridge.cpp` | L2 bridge: TinyUSB NCM ↔ Wi‑Fi AP ↔ the adapter's own lwIP interface |
-| `src/dhcp_task.cpp` | DHCP server (USB device always `.2`, no gateway/DNS) |
-| `src/mdns_task.cpp` | optional mDNS fallback responder |
+| `src/bridge.cpp` | L2 bridge: TinyUSB NCM ↔ Wi‑Fi AP ↔ lwIP |
+| `src/dhcp_task.cpp`, `src/mdns_task.cpp` | DHCP server, optional mDNS fallback |
 | `src/web.cpp` | settings page, JSON API, OTA |
 | `src/boot_mode.cpp` | safe mode, handing USB back to serial/JTAG |
-| `src/display.cpp`, `src/button.cpp` | Cardputer screen (esp_lcd ST7789), G0 button |
+| `src/display.cpp`, `src/button.cpp` | Cardputer screen, G0 button |
 | `src/logic/` | pure logic without ESP‑IDF, covered by `test/` |
 
-The original design notes (written while this was a Blackmagic‑only adapter) are in
-`docs/superpowers/specs/`.
+Design notes: `docs/superpowers/specs/`. Screens in this README: `tools/render_screens.py`.
 
-## Limits and notes
+## Limits
 
-- Tested with a Linux PC and with a Blackmagic Micro Studio Camera 4K G2 (firmware 9.6.2): the
-  camera accepts the class‑compliant USB NCM adapter, gets `192.168.73.2`, answers its REST API
-  and its own mDNS name through the bridge. Other devices must be checked individually.
-- No remote wakeup is advertised: with it, the camera autosuspended the idle adapter and frames
-  for the camera were lost. Without VBUS sensing a pulled cable looks like a bus suspend, so a
-  link suspended for 3 s is shown as down and the adapter re‑attaches itself every 10 s. If not, the next step is
-  ECM/RNDIS mode (`CONFIG_TINYUSB_NET_MODE_ECM_RNDIS`; esp_tinyusb ships no default descriptors
-  for it, so they would have to be written).
-- The factory password is the same on every adapter (`ethair123`) so it can be known on boards
-  without a screen. Change it on the settings page if strangers may be nearby.
-- The settings page and OTA have no separate password; the Wi‑Fi password protects them.
-- Up to 4 Wi‑Fi clients at a time.
+- Up to 4 Wi‑Fi clients at a time; about 0.5 MB/s phone ↔ USB device.
+- The factory password is the same on every adapter (so boards without a screen are usable);
+  change it on the settings page.
+- Tested on the Cardputer ADV. The original Cardputer has the same screen and G0 button and should
+  work with the same image; other ESP32‑S3 boards with native USB use the `generic` image.
+- Other USB hosts than the tested camera and Linux PCs should work if they accept class‑compliant
+  CDC‑NCM adapters, but are untested.

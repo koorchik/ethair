@@ -93,11 +93,12 @@ void task(void*) {
 }  // namespace
 
 void dhcpTaskStart() {
-    // Android only treats a Wi-Fi network as usable for apps when it has a
-    // default route, so Wi-Fi clients get the adapter as gateway (the USB
-    // device never does). No DNS is sent.
+    // No gateway and no DNS: tested on Android 17 (Galaxy S24 Ultra) that a
+    // gateway is not needed to reach the adapter, and without one iOS keeps
+    // mobile data for the internet. (The DhcpServer can send option 3 to
+    // Wi-Fi clients if ever needed; the USB device never gets it.)
     static const DhcpConfig cfg = {ADAPTER_IP, NETMASK, DEVICE_IP, POOL_START, POOL_END, LEASE_SECS,
-                                   ADAPTER_IP};
+                                   0};
     s_server = new DhcpServer(cfg);
     s_lock = xSemaphoreCreateMutex();
     xTaskCreate(task, "dhcp", 4096, nullptr, 5, nullptr);

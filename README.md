@@ -21,20 +21,21 @@ device = 192.168.73.2                 phones = 192.168.73.10–50
    MAC address; the Cardputer shows it on screen).
 4. Reach the device at **`192.168.73.2`** — it always gets this address.
 
-Wi‑Fi clients get the adapter as their gateway (Android ignores Wi‑Fi networks without a default
-route), but the adapter has no internet and hands out no DNS. The USB device never gets a gateway,
-so a computer used for setup keeps its own internet.
+The adapter hands out no gateway and no DNS: its network has no internet. The USB device never
+gets a gateway either, so a computer used for setup keeps its own internet.
 
 **Apps on the phone:**
 - **iOS** — the app needs the *Local Network* permission.
-- **Android** — Android treats a Wi‑Fi without internet as "not validated". With mobile data on it
-  keeps mobile data as the default network, so the app must bind to the Wi‑Fi network
-  (`ConnectivityManager.bindProcessToNetwork` or `Network.socketFactory`) to reach `192.168.73.2`.
-  With mobile data off, the Wi‑Fi becomes the default network.
-- **Chrome on Android** may refuse local pages on a network without internet
-  (`ERR_TOO_MANY_RETRIES`, "No internet" banner) even when the network works. Samsung Internet
-  and apps open them fine. Verified on a Galaxy S24 Ultra: the settings page loads, and a
-  2 MB download from the USB side ran at ~585 KB/s.
+- **Android 17+** — an app needs the **Nearby devices** permission (`ACCESS_LOCAL_NETWORK`) to
+  reach local addresses at all. Chrome without it fails with `ERR_TOO_MANY_RETRIES`:
+  Settings → Apps → Chrome → Permissions → Nearby devices → Allow.
+- **Android, which network is "main"** — Android asks whether to stay on a Wi‑Fi without internet.
+  If you keep it, EthAir becomes the main network: every app and browser reaches the device, but
+  the phone has no internet while connected. If not, mobile data stays main: the internet works,
+  and only apps that bind to the Wi‑Fi network (`ConnectivityManager.bindProcessToNetwork` or
+  `Network.socketFactory`) reach the device. The adapter cannot change this choice.
+- Verified on a Galaxy S24 Ultra (Android 17): settings page in Chrome and Samsung Internet,
+  phone → adapter → USB host HTTP, ~585 KB/s for a 2 MB download.
 
 ## Cardputer screen
 

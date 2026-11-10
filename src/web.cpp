@@ -121,11 +121,11 @@ void renderPage(Out& o, const Settings& form, const char* message, bool error) {
           "<tr><td>This adapter</td><td>192.168.73.1</td></tr>"
           "<tr><td>USB device</td><td>always 192.168.73.2</td></tr>"
           "<tr><td>Wi&#8209;Fi clients</td><td>192.168.73.10&ndash;50</td></tr>"
-          "</table><p><small>Wi&#8209;Fi clients get this adapter as their gateway, but it has no "
-          "internet and hands out no DNS. With mobile data on, Android keeps using it for the "
-          "internet, so apps that talk to the device should bind to this Wi&#8209;Fi network. "
-          "iOS apps need the Local Network permission. If Chrome on Android refuses to open "
-          "this page, use another browser (e.g. Samsung Internet).</small></p>");
+          "</table><p><small>No gateway or DNS is handed out: this network has no internet. "
+          "Android 17+: an app (including Chrome) needs the <b>Nearby devices</b> permission "
+          "to open local addresses. If Android keeps mobile data as the main network, apps "
+          "must bind to this Wi&#8209;Fi network to reach the device. iOS apps need the "
+          "Local Network permission.</small></p>");
 
     o.add("<h2>Settings</h2><form method=post action='/save'>"
           "<label>Wi&#8209;Fi name</label><input name=ssid maxlength=32 value=\"%s\">"

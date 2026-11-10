@@ -95,8 +95,9 @@ void buildStatus(DisplayModel& m, const Settings& s) {
     // battery switch being on (the camera never starts its USB host), a
     // charge-only cable or a loose plug; the board cannot tell which.
     if (!st.usbMounted && now - usbSeenAt >= 15000 && now >= 15000) {
-        displaySetLine(m, 3, COLOR_RED, "No USB data? Check:");
-        displaySetLine(m, 4, COLOR_RED, "switch OFF, cable");
+        // Line 4 is longer than 20 characters, so it is drawn small.
+        displaySetLine(m, 3, COLOR_RED, "USB: no camera data");
+        displaySetLine(m, 4, COLOR_RED, "CARDPUTER's own switch OFF? Data cable?");
     } else
 #endif
     if (!st.usbMounted) {

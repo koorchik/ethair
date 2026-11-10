@@ -47,6 +47,13 @@ When the board sits in a camera, reach it through a phone on its Wi‑Fi with ad
 with internet (Samsung "switch to better Wi‑Fi"); `adb shell cmd wifi connect-network <ssid> wpa2
 <pass>` reconnects.
 
+### Releasing
+
+Bump `PROJECT_VER` in `CMakeLists.txt`, run `tools/release.sh` (native tests, every device env,
+`dist/*-full.bin` for USB at 0x0 + `dist/*-ota.bin` + `SHA256SUMS`), commit, tag `vX.Y.Z`, attach
+the `dist/` files to the GitHub release. The version shows on the settings page and in
+`/api/status`. `tools/release.sh` is identical in both firmwares.
+
 ## Architecture
 
 | File | Role |
@@ -90,7 +97,7 @@ thin. No serial console while NCM runs — use `/api/log` (ring buffer).
 the same fixes in both: `src/bridge.*`, `src/dhcp_task.*`, `src/mdns_task.*`, `src/boot_mode.*`,
 `src/log_buffer.*`, `src/settings_store.*` (the fork adds UI flags), `src/web.*`,
 `src/logic/{forwarder,dhcp_server,mdns,settings,web_text,boot_guard,frame_info,hold_detector}*`,
-`partitions.csv`, `tools/flash.sh`, and the corresponding tests. Port fixes deliberately (diff the
+`partitions.csv`, `tools/flash.sh`, `tools/release.sh`, and the corresponding tests. Port fixes deliberately (diff the
 files); they are not a shared library on purpose, so each firmware builds and evolves on its own.
 
 ## Conventions

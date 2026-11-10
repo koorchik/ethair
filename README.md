@@ -89,6 +89,34 @@ device's IP. Empty (the default) turns this off. State: `"mdns": "off" | "device
 Both POST calls need the header `X-EthAir: 1` and the host `192.168.73.1`. This blocks web pages
 the phone opens over mobile data from posting to the adapter (CSRF, DNS rebinding).
 
+## Installing a release
+
+`tools/release.sh` builds the release files into `dist/` (they are also attached to the GitHub
+release), with `SHA256SUMS`:
+
+- `ethair-cardputer-v1.0.0-full.bin`: whole image for a new board, flashed over USB at `0x0`.
+- `ethair-cardputer-v1.0.0-ota.bin`: update for a board that already runs EthAir.
+- `ethair-generic-v1.0.0-full.bin`: whole image for a new board, flashed over USB at `0x0`.
+- `ethair-generic-v1.0.0-ota.bin`: update for a board that already runs EthAir.
+
+**New board:** start the ROM download mode (Cardputer: power switch off, hold **G0**, switch on,
+release), then write the full image at address `0x0`:
+
+```bash
+esptool.py --chip esp32s3 write_flash 0x0 ethair-cardputer-v1.0.0-full.bin
+```
+
+(or in the browser with Espressif's esptool‑js flasher, address `0x0`). Switch off and on again
+afterwards; the settings start at the factory defaults.
+
+**Update:** from a computer or phone connected to the adapter (USB or its Wi‑Fi):
+
+```bash
+curl -H "X-EthAir: 1" --data-binary @ethair-cardputer-v1.0.0-ota.bin http://192.168.73.1/api/ota
+```
+
+The installed version is shown on the settings page and in `/api/status` (`"version"`).
+
 ## Building and flashing
 
 Needs PlatformIO. The framework is ESP‑IDF 6.1 (not Arduino: Arduino 2.0.17 has no TinyUSB network

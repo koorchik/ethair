@@ -37,6 +37,12 @@ gets a gateway either, so a computer used for setup keeps its own internet.
 - Verified on a Galaxy S24 Ultra (Android 17): settings page in Chrome and Samsung Internet,
   phone → adapter → USB host HTTP, ~585 KB/s for a 2 MB download.
 
+**Cardputer with a camera: keep the power switch OFF.** With the battery on, the Cardputer
+puts its own 5 V on the USB‑C port and the Blackmagic camera then never starts its USB host, so
+the screen stays at `USB: no device`. Switched off, the Cardputer runs from the camera's port and
+is found within ~20 s of plugging in. (A computer does not mind either way. A bare ESP32‑S3 board
+without a battery is not affected.)
+
 ## Cardputer screen
 
 ```
@@ -134,8 +140,12 @@ The original design notes (written while this was a Blackmagic‑only adapter) a
 
 ## Limits and notes
 
-- Tested with a Linux PC standing in for the USB device. Whether a given device accepts a
-  class‑compliant USB NCM adapter must be checked on that device. If not, the next step is
+- Tested with a Linux PC and with a Blackmagic Micro Studio Camera 4K G2 (firmware 9.6.2): the
+  camera accepts the class‑compliant USB NCM adapter, gets `192.168.73.2`, answers its REST API
+  and its own mDNS name through the bridge. Other devices must be checked individually.
+- No remote wakeup is advertised: with it, the camera autosuspended the idle adapter and frames
+  for the camera were lost. Without VBUS sensing a pulled cable looks like a bus suspend, so a
+  link suspended for 3 s is shown as down and the adapter re‑attaches itself every 10 s. If not, the next step is
   ECM/RNDIS mode (`CONFIG_TINYUSB_NET_MODE_ECM_RNDIS`; esp_tinyusb ships no default descriptors
   for it, so they would have to be written).
 - The factory password is the same on every adapter (`ethair123`) so it can be known on boards

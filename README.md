@@ -7,10 +7,17 @@ its Wi‑Fi from a phone, and reach the device as if both were on the same switc
 discovery, REST APIs, WebSockets. It runs from the device's own USB port. Built for the M5Stack
 Cardputer and any bare ESP32‑S3 board.
 
-<p align="center">
-  <img src="docs/images/cardputer-ethair.png" width="560" alt="Cardputer ADV running EthAir: Wi-Fi name, password, settings address, USB device connected at 192.168.73.2, one Wi-Fi client">
-  <br><sub>Cardputer ADV photo: M5Stack</sub>
-</p>
+<table align="center">
+  <tr>
+    <td align="center" valign="bottom"><img src="docs/images/cardputer-ethair.png" width="480" alt="Cardputer ADV running EthAir: Wi-Fi name, password, settings address, USB device connected at 192.168.73.2, one Wi-Fi client"></td>
+    <td align="center" valign="bottom"><img src="docs/images/stamp-s3a.png" width="104" alt="M5Stamp S3A, a thumb-sized ESP32-S3 board"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>M5Stack Cardputer / ADV</b><br><sub>status screen, G0 button (<code>cardputer</code> build)</sub></td>
+    <td align="center"><b>Any ESP32‑S3</b><br><sub>e.g. M5Stamp S3A (<code>generic</code> build)</sub></td>
+  </tr>
+</table>
+<p align="center"><sub>The Cardputer ADV has a Stamp S3A inside. Photos: M5Stack.</sub></p>
 
 ```
  camera / USB host ──USB‑C (CDC‑NCM)──▶ [ EthAir ] ◀──Wi‑Fi── phone, tablet, laptop
@@ -175,7 +182,7 @@ port for 3 minutes), or the download mode by hand (unplugged, power switch OFF, 
 | `src/logic/` | pure logic without ESP‑IDF, covered by `test/` |
 
 Design notes: `docs/superpowers/specs/`. Screens in this README: `tools/render_screens.py`; the
-photo composite: `tools/product_shot.py`.
+photo composite: `tools/product_shot.py`; board cutout: `tools/cutout.py`.
 
 ## Limits
 

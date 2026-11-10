@@ -23,6 +23,14 @@
   .plat i { font-style: normal; display: inline-flex; align-items: center; gap: 6px; }
   .device { max-width: 620px; margin: 0 auto 6px; }
   .device img { width: 100%; display: block; }
+  .boards { display: flex; align-items: flex-end; justify-content: center; gap: 28px; margin: 0 auto 6px; }
+  .boards figure { margin: 0; text-align: center; }
+  .boards img { display: block; width: 100%; }
+  .boards .cp { flex: 0 1 560px; }
+  .boards .st { flex: 0 0 120px; }
+  .boards figcaption { color: var(--dim); font-size: 13px; margin-top: 8px; line-height: 1.35; }
+  .boards figcaption b { color: var(--text); font-weight: 600; }
+  @media (max-width: 560px) { .boards { gap: 14px; } .boards .st { flex-basis: 80px; } }
   .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 32px; }
   .frame { background: #1a1f26; border: 1px solid #2c333d; border-radius: 14px; padding: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.45); }
   .frame img { width: 100%; display: block; border-radius: 8px; }
@@ -47,8 +55,13 @@
   <h1>Eth<span>Air</span></h1>
   <p class="lead">Turns an ESP32‑S3 into a USB Ethernet adapter that bridges to its own Wi‑Fi. Plug it into a camera or any device with a USB host port, join the Wi‑Fi from your phone, and reach the device as if it were on your network.</p>
 
-  <div class="device"><img src="images/cardputer-ethair.png" alt="Cardputer running EthAir: Wi-Fi name, password, settings address and the connected USB device"></div>
-  <div class="cap" style="margin-bottom:22px">EthAir on a Cardputer ADV: the Wi‑Fi to join and the device it found. Photo: M5Stack.</div>
+  <div class="boards">
+    <figure class="cp"><img src="images/cardputer-ethair.png" alt="Cardputer ADV running EthAir: Wi-Fi name, password, settings address and the connected USB device">
+      <figcaption><b>M5Stack Cardputer / ADV</b><br>status screen, G0 button</figcaption></figure>
+    <figure class="st"><img src="images/stamp-s3a.png" alt="M5Stamp S3A, a thumb-sized ESP32-S3 board">
+      <figcaption><b>Any ESP32‑S3</b><br>e.g. M5Stamp S3A</figcaption></figure>
+  </div>
+  <div class="cap" style="margin-bottom:22px">Two builds, same bridge. The Cardputer ADV has a Stamp S3A inside. Photos: M5Stack.</div>
   <h2>With a Blackmagic camera</h2>
   <a class="app" href="https://camctrl.app/">
     <img src="images/camctrl-app-icon.png" alt="CamCtrl app icon">

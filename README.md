@@ -8,7 +8,7 @@ discovery, REST APIs, WebSockets. It runs from the device's own USB port. Built 
 Cardputer and any bare ESP32‑S3 board.
 
 <p align="center">
-  <img src="docs/images/ethair-ready.png" width="420" alt="Cardputer screen: Wi-Fi name, password, settings address, USB device connected at 192.168.73.2, one Wi-Fi client">
+  <img src="docs/images/cardputer-ethair.png" width="560" alt="Cardputer running EthAir: Wi-Fi name, password, settings address, USB device connected at 192.168.73.2, one Wi-Fi client">
 </p>
 
 ```
@@ -18,6 +18,14 @@ Cardputer and any bare ESP32‑S3 board.
 
 Tested with a Blackmagic Micro Studio Camera 4K G2: its REST API and mDNS name work from a phone
 over Wi‑Fi.
+
+<a href="https://camctrl.app/"><img src="docs/images/camctrl-app-icon.png" width="72" align="left" alt="CamCtrl app icon"></a>
+
+**[CamCtrl](https://camctrl.app/)**, the full remote app for Blackmagic cameras<br>
+<a href="https://camctrl.app/"><img src="https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white" alt="Android"></a>
+<a href="https://camctrl.app/"><img src="https://img.shields.io/badge/iOS-000000?logo=apple&logoColor=white" alt="iOS"></a>
+<a href="https://camctrl.app/"><img src="https://img.shields.io/badge/camctrl.app-ffbf00" alt="camctrl.app"></a>
+<br clear="left">
 
 **With a Blackmagic camera:** EthAir is the missing link for **[CamCtrl](https://camctrl.app/)**,
 the full remote app for Blackmagic cameras (focus, exposure, colour, audio, media, monitoring).

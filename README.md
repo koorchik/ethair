@@ -176,3 +176,11 @@ Design notes: `docs/superpowers/specs/`. Screens in this README: `tools/render_s
   work with the same image; other ESP32‑S3 boards with native USB use the `generic` image.
 - Other USB hosts than the tested camera and Linux PCs should work if they accept class‑compliant
   CDC‑NCM adapters, but are untested.
+
+## License
+
+MIT, see [LICENSE](LICENSE). Third‑party parts keep their own licenses: the 5×7 font in
+`src/fonts/glcdfont.h` (Adafruit, BSD), ESP‑IDF and esp_tinyusb (Apache 2.0), cJSON (MIT, test
+copy in `test/support/`). ESP Web Tools (Apache 2.0) is served by the installer page.
+
+EthAir is not affiliated with Blackmagic Design or M5Stack.

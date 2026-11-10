@@ -66,6 +66,11 @@ void bootModeReconnectSerialJtag() {
     const usb_serial_jtag_pull_override_vals_t off = {false, false, false, false};
     usb_serial_jtag_ll_phy_enable_pull_override(&off);
     vTaskDelay(pdMS_TO_TICKS(100));
+    // Serial/JTAG registers survive esp_restart(), so the D+ pull-up value
+    // must be put back (dp_pu = 1) before giving pull control back to the
+    // hardware, or the host never sees the device again.
+    const usb_serial_jtag_pull_override_vals_t normal = {true, false, false, false};
+    usb_serial_jtag_ll_phy_enable_pull_override(&normal);
     usb_serial_jtag_ll_phy_disable_pull_override();
 }
 

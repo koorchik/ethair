@@ -10,7 +10,7 @@
 //   POST /api/reboot?mode=normal|safe|download
 //        restart; "safe" and "download" give USB back to serial/JTAG for esptool
 //   POST /api/ota      body = firmware.bin; flashes the other slot and restarts
-// The two POST /api/ calls require the header "X-BMCam: 1" (CSRF guard).
+// The two POST /api/ calls require the header "X-EthAir: 1" (CSRF guard).
 void webStart(const Settings& current);
 
 // Number of HTTP requests served since boot.

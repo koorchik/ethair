@@ -12,10 +12,10 @@ static const uint8_t MAC[6] = {0x24, 0x58, 0x7C, 0x01, 0xAB, 0x0F};
 void test_defaults(void) {
     Settings s;
     defaultSettings(MAC, s);
-    TEST_ASSERT_EQUAL_STRING("BMCam-AB0F", s.ssid);
-    TEST_ASSERT_EQUAL_STRING("blackmagic", s.password);
+    TEST_ASSERT_EQUAL_STRING("EthAir-AB0F", s.ssid);
+    TEST_ASSERT_EQUAL_STRING("ethair123", s.password);
     TEST_ASSERT_EQUAL_UINT8(6, s.channel);
-    TEST_ASSERT_EQUAL_STRING("micro-studio-camera-4k-g2", s.cameraHostname);
+    TEST_ASSERT_EQUAL_STRING("", s.deviceHostname);  // mDNS fallback off
     TEST_ASSERT_NULL(validateSettings(s));
 }
 
@@ -53,7 +53,7 @@ void test_channel_rules(void) {
 void test_hostname_rules(void) {
     TEST_ASSERT_NULL(validateHostname("micro-studio-camera-4k-g2"));
     TEST_ASSERT_NULL(validateHostname("Cam1"));
-    TEST_ASSERT_NOT_NULL(validateHostname(""));
+    TEST_ASSERT_NULL(validateHostname(""));  // empty = off
     TEST_ASSERT_NOT_NULL(validateHostname("-cam"));
     TEST_ASSERT_NOT_NULL(validateHostname("cam-"));
     TEST_ASSERT_NOT_NULL(validateHostname("cam.local"));

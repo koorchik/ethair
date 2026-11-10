@@ -1,129 +1,137 @@
-# BMCam: USB‑Ethernet → Wi‑Fi адаптер для Blackmagic
+# EthAir: USB Ethernet → Wi‑Fi bridge
 
-Прошивка для ESP32‑S3 (зараз M5Stack Cardputer ADV, згодом будь‑яка плата ESP32‑S3 з
-кнопкою). Адаптер вставляється в USB‑C камери Blackmagic (Micro Studio Camera 4K G2), живиться
-від неї і для камери виглядає як звичайний USB‑Ethernet адаптер. Назовні він роздає власну
-Wi‑Fi мережу. Телефон, підключений до неї, бачить камеру так, ніби вони в одному світчі: працює і
-пошук через mDNS (`micro-studio-camera-4k-g2.local`), і REST API за IP.
-
-```
-камера ──USB (NCM)──> [ESP32-S3: L2-міст + DHCP + mDNS] <──Wi-Fi── телефон
-                         192.168.73.1
-камера = 192.168.73.2               телефони = 192.168.73.10–50
-```
-
-## Як користуватися
-
-1. У мережевих налаштуваннях камери увімкни **DHCP**.
-2. Встав адаптер у USB‑C камери.
-3. Підключи телефон до Wi‑Fi **`BMCam-XXXX`**, пароль **`blackmagic`** (XXXX — кінець MAC,
-   видно на екрані Cardputer).
-4. Камера: `http://192.168.73.2/control/api/v1/...` або `micro-studio-camera-4k-g2.local`.
-
-Мережа адаптера не видає себе за вихід в інтернет (DHCP не роздає шлюз і DNS), тож мобільний
-інтернет на телефоні лишається.
-
-**Застосунок на телефоні:**
-- **iOS** — потрібен дозвіл *Local Network*.
-- **Android** — мережу без інтернету Android вважає «невалідною» і за замовчуванням шле трафік через
-  мобільні дані. Застосунок має прив'язатися до Wi‑Fi мережі (`ConnectivityManager.bindProcessToNetwork`
-  або `Network.socketFactory`), інакше запити до `192.168.73.2` не дійдуть.
-
-## Екран Cardputer
+Firmware for an ESP32‑S3 (currently the M5Stack Cardputer ADV, later any ESP32‑S3 board with a
+button). Plug it into any device with a USB host port that supports USB Ethernet adapters — for
+example a Blackmagic Micro Studio Camera 4K G2 — and it powers itself from that port, shows up
+there as a USB Ethernet adapter, and bridges that link to its own Wi‑Fi network. A phone on that
+Wi‑Fi sees the device as if both were plugged into the same switch: mDNS discovery and direct IP
+access both work.
 
 ```
-BMCam-1C25                 ← назва мережі
-pass blackmagic            ← пароль
-cfg http://192.168.73.1    ← сторінка налаштувань
-USB: camera OK             ← камера підключена по USB
-cam 192.168.73.2           ← IP камери (червоним, якщо в камери статична IP з іншої мережі)
+device ──USB (CDC-NCM)──> [ESP32-S3: L2 bridge + DHCP] <──Wi-Fi── phone
+                             192.168.73.1
+device = 192.168.73.2                 phones = 192.168.73.10–50
+```
+
+## Using it
+
+1. Set the USB device's network settings to **DHCP**.
+2. Plug EthAir into the device's USB port.
+3. Join the Wi‑Fi network **`EthAir-XXXX`** with password **`ethair123`** (XXXX is the end of the
+   MAC address; the Cardputer shows it on screen).
+4. Reach the device at **`192.168.73.2`** — it always gets this address.
+
+The adapter does not pretend to be an internet gateway (DHCP hands out no router and no DNS),
+so phones keep using mobile data for the internet.
+
+**Apps on the phone:**
+- **iOS** — the app needs the *Local Network* permission.
+- **Android** — Android treats a Wi‑Fi without internet as "not validated" and sends traffic over
+  mobile data by default. The app must bind to the Wi‑Fi network
+  (`ConnectivityManager.bindProcessToNetwork` or `Network.socketFactory`) to reach `192.168.73.2`.
+
+## Cardputer screen
+
+```
+EthAir-1C25                ← Wi-Fi name
+pass ethair123             ← Wi-Fi password
+cfg http://192.168.73.1    ← settings page
+USB: device OK             ← USB device connected
+dev 192.168.73.2           ← device IP (red if the device has a static IP from another network)
 wifi clients 1
 Hold G0 5s: factory reset
 ```
 
-## Налаштування
+## Settings
 
-Сторінка `http://192.168.73.1/` (з телефону, підключеного до адаптера): стан, назва мережі,
-пароль, канал і mDNS‑ім'я камери. Після збереження адаптер перезапускається.
+Open `http://192.168.73.1/` from a phone or computer on the adapter's network: status, the
+address plan, Wi‑Fi name, password, channel and the optional mDNS fallback name. Saving restarts
+the adapter.
 
-**Скидання до заводських:** утримувати кнопку **G0** 5 секунд. Мережа повертається до
-`BMCam-XXXX` / `blackmagic`.
+**Forgot the password?** On the Cardputer it is always on screen. On any board: hold **G0** for
+5 seconds. Settings are erased and the adapter restarts as `EthAir-XXXX` / `ethair123`.
 
 ## mDNS
 
-Адаптер прозоро пропускає mDNS між камерою і телефоном. Якщо камера сама не відповідає на своє ім'я
-(адаптер перевіряє це запитом кожні 30 с), адаптер відповідає за неї: `<ім'я>.local → IP камери`.
-Ім'я за замовчуванням: `micro-studio-camera-4k-g2` (змінюється на сторінці налаштувань).
-Поточний режим видно на сторінці і в `/api/status` (`"mdns": "camera" | "adapter" | "no_camera"`).
+mDNS passes through the bridge untouched, so a device that announces itself (e.g.
+`micro-studio-camera-4k-g2.local`) is discoverable from the phone as usual.
+
+If the device does not answer for its name over USB Ethernet, set the **mDNS fallback name** on the
+settings page (e.g. `micro-studio-camera-4k-g2`). The adapter then checks every 30 s whether the
+device answers for that name and, only while it stays silent, answers on its behalf with the
+device's IP. Empty (the default) turns this off. State: `"mdns": "off" | "device" | "adapter" |
+"no_device"` in `/api/status`.
 
 ## API
 
-| Метод | Шлях | Що робить |
+| Method | Path | What it does |
 |---|---|---|
-| GET | `/api/status` | JSON: USB, IP камери, клієнти Wi‑Fi, лічильники кадрів |
-| GET | `/api/log` | останні ~8 КБ логів (USB зайнятий мережею, тож серійного порту немає) |
-| POST | `/api/ota` | тіло = `firmware.bin`; оновлення по мережі з автоматичним відкатом |
-| POST | `/api/reboot?mode=normal\|safe\|download` | перезапуск; `safe`/`download` віддають USB під прошивку |
+| GET | `/api/status` | JSON: USB link, device IP, Wi‑Fi clients, frame counters, OTA state |
+| GET | `/api/log` | last ~8 KB of logs (USB is busy being a network card, so there is no serial console) |
+| POST | `/api/ota` | body = `firmware.bin`; network update with automatic rollback |
+| POST | `/api/reboot?mode=normal\|safe\|download` | restart; `safe`/`download` hand USB back for flashing |
 
-Обидва POST‑виклики вимагають заголовок `X-BMCam: 1`: це захист від сторінок з інтернету, які
-телефон відкриває через мобільні дані.
+Both POST calls need the header `X-EthAir: 1` and the host `192.168.73.1`. This blocks web pages
+the phone opens over mobile data from posting to the adapter (CSRF, DNS rebinding).
 
-## Збірка і прошивка
+## Building and flashing
 
-Потрібен PlatformIO. Фреймворк — ESP‑IDF 6.1 (не Arduino: в Arduino 2.0.17 немає
-USB‑мережевого класу TinyUSB).
+Needs PlatformIO. The framework is ESP‑IDF 6.1 (not Arduino: Arduino 2.0.17 has no TinyUSB network
+class).
 
 ```bash
-pio test -e native            # unit-тести логіки (DHCP, міст, mDNS, налаштування…)
-pio run -e cardputer          # Cardputer ADV (екран + G0)
-pio run -e generic            # гола ESP32-S3 з кнопкою на GPIO0 (BOARD_BUTTON_GPIO)
-tools/flash.sh                # зібрати і прошити: по мережі (OTA), якщо адаптер доступний, інакше по USB
-tools/flash.sh cardputer --usb   # примусово по USB
+pio test -e native                # unit tests for the pure logic (DHCP, bridge, mDNS, settings…)
+pio run -e cardputer              # Cardputer ADV (screen + G0)
+pio run -e generic                # bare ESP32-S3, button on GPIO0 (BOARD_BUTTON_GPIO)
+tools/flash.sh                    # build and flash: over the network (OTA) if reachable, else USB
+tools/flash.sh cardputer --usb    # force USB serial
 ```
 
-**Важливо:** коли прошивка працює, USB‑C — це мережева карта, а не серійний порт. Варіанти
-перепрошивки:
+While the firmware runs, the USB‑C port is a network card, not a serial port. Ways to re‑flash:
 
-1. **По мережі (основний):** ПК, підключений до адаптера по USB або Wi‑Fi, бачить `192.168.73.1`,
-   і `tools/flash.sh` заливає прошивку через `/api/ota`. Якщо нова прошивка впаде до того, як
-   пропрацює 30 с, завантажувач сам повернеться до попередньої.
-2. **Безпечний режим:** `curl -X POST -H "X-BMCam: 1" "http://192.168.73.1/api/reboot?mode=safe"` — плата
-   перезапускається, USB стає серійним портом (`/dev/ttyACM0`), далі `tools/flash.sh cardputer --usb`.
-   Через 3 хвилини без прошивки плата сама повертається в звичайний режим. Після двох падінь
-   поспіль плата теж стартує в безпечному режимі.
-3. **Вручну (завжди працює):** вимкнути Cardputer перемикачем, затиснути **G0**, увімкнути,
-   відпустити — це ROM‑режим завантаження. Далі `tools/flash.sh cardputer --usb`.
-   (Просто підключити USB недостатньо: від батареї плата не перезавантажується.)
+1. **Over the network (normal):** a computer connected to the adapter over USB or Wi‑Fi reaches
+   `192.168.73.1`, and `tools/flash.sh` uploads via `/api/ota`. A new image is kept only after it
+   has run for 30 s and served an HTTP request; otherwise the bootloader rolls back.
+2. **Safe mode:** `curl -X POST -H "X-EthAir: 1" "http://192.168.73.1/api/reboot?mode=safe"` — the
+   board restarts with USB as a serial port (`/dev/ttyACM0`), then `tools/flash.sh cardputer --usb`.
+   Without flashing, safe mode returns to normal by itself after 3 minutes. Two crashes in a row
+   also start safe mode.
+3. **By hand (always works):** switch the Cardputer off, hold **G0**, switch on, release — the ROM
+   download mode. Then `tools/flash.sh cardputer --usb`, then switch off and on again (without G0):
+   a reset from the computer does not re‑read the G0 strap.
 
-## Повернути гру Molfar
+## Restoring the Molfar game
 
-Перед першою прошивкою зроблено повну копію флешу Cardputer: `backups/cardputer-before-bmcam-full.bin`
-(не в git). Повернути:
+A full flash backup was taken before the first flash: `backups/cardputer-before-bmcam-full.bin`
+(not in git). To restore:
 
 ```bash
 ~/.platformio/penv/bin/python ~/.platformio/packages/tool-esptoolpy/esptool.py \
   --chip esp32s3 --port /dev/ttyACM0 write_flash 0 backups/cardputer-before-bmcam-full.bin
 ```
 
-## Структура
+## Layout
 
-| Файл | Що робить |
+| File | Role |
 |---|---|
-| `src/bridge.cpp` | L2‑міст: TinyUSB NCM ↔ Wi‑Fi AP ↔ власний lwIP‑інтерфейс |
-| `src/dhcp_task.cpp` | DHCP‑сервер (камера завжди `.2`, без шлюзу/DNS) |
-| `src/mdns_task.cpp` | запасний mDNS‑респондер за камеру |
-| `src/web.cpp` | сторінка налаштувань, JSON API, OTA |
-| `src/boot_mode.cpp` | безпечний режим, повернення USB serial/JTAG |
-| `src/display.cpp`, `src/button.cpp` | екран Cardputer (esp_lcd ST7789), кнопка G0 |
-| `src/logic/` | чиста логіка без ESP‑IDF, покрита тестами `test/` |
+| `src/bridge.cpp` | L2 bridge: TinyUSB NCM ↔ Wi‑Fi AP ↔ the adapter's own lwIP interface |
+| `src/dhcp_task.cpp` | DHCP server (USB device always `.2`, no gateway/DNS) |
+| `src/mdns_task.cpp` | optional mDNS fallback responder |
+| `src/web.cpp` | settings page, JSON API, OTA |
+| `src/boot_mode.cpp` | safe mode, handing USB back to serial/JTAG |
+| `src/display.cpp`, `src/button.cpp` | Cardputer screen (esp_lcd ST7789), G0 button |
+| `src/logic/` | pure logic without ESP‑IDF, covered by `test/` |
 
-## Обмеження і нотатки
+The original design notes (written while this was a Blackmagic‑only adapter) are in
+`docs/superpowers/specs/`.
 
-- Перевірено з Linux‑ПК замість камери. Чи прийме камера класовий USB NCM — ще треба перевірити
-  на самій камері. Якщо ні, наступний крок — режим ECM/RNDIS (`CONFIG_TINYUSB_NET_MODE_ECM_RNDIS`;
-  для нього `esp_tinyusb` не має готових дескрипторів, їх доведеться описати в прошивці).
-- Заводський пароль однаковий на всіх адаптерах (`blackmagic`) — так задумано, щоб на платі без
-  екрана його можна було знати. Зміни його на сторінці налаштувань.
-- Сторінка налаштувань і OTA не мають окремого пароля: їх захищає пароль Wi‑Fi. Будь‑хто в
-  мережі адаптера може змінити налаштування чи прошивку.
-- Одночасно до точки доступу — до 4 клієнтів.
+## Limits and notes
+
+- Tested with a Linux PC standing in for the USB device. Whether a given device accepts a
+  class‑compliant USB NCM adapter must be checked on that device. If not, the next step is
+  ECM/RNDIS mode (`CONFIG_TINYUSB_NET_MODE_ECM_RNDIS`; esp_tinyusb ships no default descriptors
+  for it, so they would have to be written).
+- The factory password is the same on every adapter (`ethair123`) so it can be known on boards
+  without a screen. Change it on the settings page if strangers may be nearby.
+- The settings page and OTA have no separate password; the Wi‑Fi password protects them.
+- Up to 4 Wi‑Fi clients at a time.

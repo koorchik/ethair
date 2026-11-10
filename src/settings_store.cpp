@@ -8,7 +8,7 @@
 
 namespace {
 const char* TAG = "settings";
-const char* NS = "bmcam";
+const char* NS = "ethair";
 
 void readStr(nvs_handle_t h, const char* key, char* out, size_t cap) {
     char tmp[80];
@@ -37,7 +37,7 @@ void settingsLoad(Settings& out) {
     }
     readStr(h, "ssid", out.ssid, sizeof(out.ssid));
     readStr(h, "pass", out.password, sizeof(out.password));
-    readStr(h, "host", out.cameraHostname, sizeof(out.cameraHostname));
+    readStr(h, "host", out.deviceHostname, sizeof(out.deviceHostname));
     uint8_t ch = 0;
     if (nvs_get_u8(h, "chan", &ch) == ESP_OK) out.channel = ch;
     nvs_close(h);
@@ -51,14 +51,14 @@ void settingsLoad(Settings& out) {
 const char* settingsSave(const Settings& s) {
     if (const char* err = validateSettings(s)) return err;
     nvs_handle_t h;
-    if (nvs_open(NS, NVS_READWRITE, &h) != ESP_OK) return "Не вдалося відкрити сховище";
+    if (nvs_open(NS, NVS_READWRITE, &h) != ESP_OK) return "Could not open settings storage";
     esp_err_t e = nvs_set_str(h, "ssid", s.ssid);
     if (e == ESP_OK) e = nvs_set_str(h, "pass", s.password);
-    if (e == ESP_OK) e = nvs_set_str(h, "host", s.cameraHostname);
+    if (e == ESP_OK) e = nvs_set_str(h, "host", s.deviceHostname);
     if (e == ESP_OK) e = nvs_set_u8(h, "chan", s.channel);
     if (e == ESP_OK) e = nvs_commit(h);
     nvs_close(h);
-    return e == ESP_OK ? nullptr : "Не вдалося зберегти налаштування";
+    return e == ESP_OK ? nullptr : "Could not save settings";
 }
 
 void settingsErase() {

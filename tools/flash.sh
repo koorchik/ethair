@@ -18,7 +18,7 @@ BIN=".pio/build/$ENV_NAME/firmware.bin"
 
 if [[ "$FORCE_USB" != "--usb" ]] && curl -s -m 2 "$ADAPTER/api/status" >/dev/null; then
     echo "Adapter found at $ADAPTER, updating over the network..."
-    curl -sS -m 180 -H 'X-BMCam: 1' -H 'Content-Type: application/octet-stream' --data-binary @"$BIN" "$ADAPTER/api/ota"
+    curl -sS -m 180 -H 'X-EthAir: 1' -H 'Content-Type: application/octet-stream' --data-binary @"$BIN" "$ADAPTER/api/ota"
     echo "Waiting for the new firmware to start and confirm itself (~30 s)..."
     for _ in $(seq 1 45); do
         sleep 2

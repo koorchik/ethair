@@ -17,12 +17,12 @@
 
 namespace {
 const char* TAG = "mdns";
-constexpr uint32_t CAMERA_QUIET_MS = 180000;  // camera silent this long -> we answer
+constexpr uint32_t DEVICE_QUIET_MS = 180000;  // device silent this long -> we answer
 constexpr uint32_t PROBE_EVERY_MS = 30000;
 constexpr uint32_t ANSWER_TTL = 120;
 
 char s_host[HOSTNAME_MAX + 1];
-std::atomic<MdnsState> s_state{MdnsState::NoCamera};
+std::atomic<MdnsState> s_state{MdnsState::Off};
 
 uint32_t nowMs() {
     return (uint32_t)(esp_timer_get_time() / 1000);
@@ -62,19 +62,19 @@ void task(void*) {
 
     static uint8_t buf[1500];
     static uint8_t reply[300];
-    bool cameraEverAnswered = false;
-    uint32_t cameraAnsweredMs = 0;
+    bool deviceEverAnswered = false;
+    uint32_t deviceAnsweredMs = 0;
     uint32_t lastProbeMs = 0;
     ESP_LOGI(TAG, "fallback responder for %s.local", s_host);
 
     while (true) {
-        const uint32_t camIp = cameraIpForClients();
+        const uint32_t devIp = deviceIpForClients();
         const uint32_t now = nowMs();
-        const bool cameraTalks = cameraEverAnswered && now - cameraAnsweredMs < CAMERA_QUIET_MS;
-        s_state = !camIp ? MdnsState::NoCamera
-                         : (cameraTalks ? MdnsState::CameraAnswers : MdnsState::AdapterAnswers);
+        const bool deviceTalks = deviceEverAnswered && now - deviceAnsweredMs < DEVICE_QUIET_MS;
+        s_state = !devIp ? MdnsState::NoDevice
+                         : (deviceTalks ? MdnsState::DeviceAnswers : MdnsState::AdapterAnswers);
 
-        if (camIp && now - lastProbeMs >= PROBE_EVERY_MS) {
+        if (devIp && now - lastProbeMs >= PROBE_EVERY_MS) {
             lastProbeMs = now;
             const size_t q = mdnsBuildQuery(s_host, reply, sizeof(reply));
             if (q) sendto(sock, reply, q, 0, (sockaddr*)&group, sizeof(group));
@@ -87,39 +87,43 @@ void task(void*) {
         const uint32_t src = ntohl(from.sin_addr.s_addr);
         if (src == ADAPTER_IP) continue;
 
-        if (camIp && src == camIp && mdnsResponseAnswers(buf, (size_t)n, s_host)) {
-            if (!cameraEverAnswered) ESP_LOGI(TAG, "camera answers for itself; staying quiet");
-            cameraEverAnswered = true;
-            cameraAnsweredMs = nowMs();
+        if (devIp && src == devIp && mdnsResponseAnswers(buf, (size_t)n, s_host)) {
+            if (!deviceEverAnswered) ESP_LOGI(TAG, "device answers for itself; staying quiet");
+            deviceEverAnswered = true;
+            deviceAnsweredMs = nowMs();
             continue;
         }
-        if (!camIp || cameraTalks || ntohs(from.sin_port) != MDNS_PORT) continue;
+        if (!devIp || deviceTalks || ntohs(from.sin_port) != MDNS_PORT) continue;
         bool qu = false;
         if (!mdnsQueryAsksFor(buf, (size_t)n, s_host, &qu)) continue;
-        const size_t len = mdnsBuildAnswer(s_host, camIp, ANSWER_TTL, reply, sizeof(reply));
+        const size_t len = mdnsBuildAnswer(s_host, devIp, ANSWER_TTL, reply, sizeof(reply));
         if (len) {
             sendto(sock, reply, len, 0, (sockaddr*)&group, sizeof(group));
             char a[16], b[16];
             ipToStr(src, a);
-            ipToStr(camIp, b);
+            ipToStr(devIp, b);
             ESP_LOGI(TAG, "answered %s for %s.local -> %s", a, s_host, b);
         }
     }
 }
 }  // namespace
 
-uint32_t cameraIpForClients() {
+uint32_t deviceIpForClients() {
     BridgeStatus st;
     bridgeStatus(st);
     if (!st.usbMounted) return 0;
     DhcpLease lease;
-    if (dhcpCameraLease(lease)) return lease.ip;
-    if (ipv4InSubnet(st.cameraSeenIp, ADAPTER_IP, NETMASK)) return st.cameraSeenIp;
+    if (dhcpDeviceLease(lease)) return lease.ip;
+    if (ipv4InSubnet(st.deviceSeenIp, ADAPTER_IP, NETMASK)) return st.deviceSeenIp;
     return 0;
 }
 
-void mdnsTaskStart(const char* cameraHostname) {
-    strncpy(s_host, cameraHostname, HOSTNAME_MAX);
+void mdnsTaskStart(const char* deviceHostname) {
+    if (!deviceHostname[0]) {
+        ESP_LOGI(TAG, "fallback responder off (no name set)");
+        return;
+    }
+    strncpy(s_host, deviceHostname, HOSTNAME_MAX);
     s_host[HOSTNAME_MAX] = '\0';
     xTaskCreate(task, "mdns", 4096, nullptr, 4, nullptr);
 }

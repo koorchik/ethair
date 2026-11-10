@@ -3,8 +3,8 @@
 #include <cstddef>
 #include <cstdint>
 
-// A tiny DHCP server (pure logic). The camera (the client on the USB port)
-// always gets `cameraIp`; Wi-Fi clients get addresses from the pool. Replies
+// A tiny DHCP server (pure logic). The device (the client on the USB port)
+// always gets `deviceIp`; Wi-Fi clients get addresses from the pool. Replies
 // carry no router and no DNS option, so phones keep mobile data for the
 // internet and use this network only for its own subnet.
 //
@@ -33,7 +33,7 @@ enum DhcpMsgType : uint8_t {
 struct DhcpConfig {
     uint32_t serverIp;
     uint32_t netmask;
-    uint32_t cameraIp;
+    uint32_t deviceIp;
     uint32_t poolStart;  // inclusive
     uint32_t poolEnd;    // inclusive
     uint32_t leaseSecs;
@@ -41,7 +41,7 @@ struct DhcpConfig {
 
 struct DhcpLease {
     bool used;
-    bool camera;
+    bool device;
     uint8_t mac[6];
     uint32_t ip;
     uint32_t expiresSec;
@@ -52,25 +52,25 @@ class DhcpServer {
 public:
     explicit DhcpServer(const DhcpConfig& cfg);
 
-    // Handles one client message. `fromCamera` says the client MAC sits on the
+    // Handles one client message. `fromDevice` says the client MAC sits on the
     // USB port. Writes the reply into `out` and returns its length, or 0 when
     // nothing should be sent.
-    size_t handle(const uint8_t* in, size_t inLen, bool fromCamera, uint32_t nowSec,
+    size_t handle(const uint8_t* in, size_t inLen, bool fromDevice, uint32_t nowSec,
                   uint8_t* out, size_t outCap);
 
     // Active (bound, unexpired) leases.
     size_t activeLeases(uint32_t nowSec, DhcpLease* out, size_t cap) const;
-    // The camera's bound lease, if any.
-    bool cameraLease(uint32_t nowSec, DhcpLease& out) const;
+    // The USB device's bound lease, if any.
+    bool deviceLease(uint32_t nowSec, DhcpLease& out) const;
     void clear();
 
     const DhcpConfig& config() const { return cfg_; }
 
 private:
-    DhcpLease* findByMac(const uint8_t mac[6], bool camera);
+    DhcpLease* findByMac(const uint8_t mac[6], bool device);
     bool ipTaken(uint32_t ip, const uint8_t mac[6], uint32_t nowSec) const;
-    uint32_t pickIp(const uint8_t mac[6], bool camera, uint32_t requested, uint32_t nowSec);
-    DhcpLease* bind(const uint8_t mac[6], uint32_t ip, bool camera, uint32_t nowSec,
+    uint32_t pickIp(const uint8_t mac[6], bool device, uint32_t requested, uint32_t nowSec);
+    DhcpLease* bind(const uint8_t mac[6], uint32_t ip, bool device, uint32_t nowSec,
                     const char* hostname);
 
     DhcpConfig cfg_;

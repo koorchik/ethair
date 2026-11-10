@@ -12,24 +12,25 @@ constexpr size_t HOSTNAME_MAX = 63;
 constexpr uint8_t CHANNEL_MIN = 1;
 constexpr uint8_t CHANNEL_MAX = 13;
 
-constexpr const char* DEFAULT_SSID_PREFIX = "BMCam";
-constexpr const char* DEFAULT_PASSWORD = "blackmagic";
+constexpr const char* DEFAULT_SSID_PREFIX = "EthAir";
+constexpr const char* DEFAULT_PASSWORD = "ethair123";
 constexpr uint8_t DEFAULT_CHANNEL = 6;
-constexpr const char* DEFAULT_CAMERA_HOSTNAME = "micro-studio-camera-4k-g2";
+// Empty = the fallback mDNS responder is off.
+constexpr const char* DEFAULT_DEVICE_HOSTNAME = "";
 
 struct Settings {
     char ssid[SSID_MAX + 1];
     char password[PASS_MAX + 1];
     uint8_t channel;
-    // mDNS name (without ".local") the adapter answers for when the camera
-    // does not answer itself.
-    char cameraHostname[HOSTNAME_MAX + 1];
+    // mDNS name (without ".local") the adapter answers for when the USB
+    // device does not answer itself. Empty = off.
+    char deviceHostname[HOSTNAME_MAX + 1];
 };
 
-// "BMCam-XXXX" from the last two MAC bytes.
+// "EthAir-XXXX" from the last two MAC bytes.
 void defaultSettings(const uint8_t mac[6], Settings& out);
 
-// Each returns nullptr when valid, else a short Ukrainian error message
+// Each returns nullptr when valid, else a short error message
 // shown on the settings page.
 const char* validateSsid(const char* ssid);
 const char* validatePassword(const char* password);

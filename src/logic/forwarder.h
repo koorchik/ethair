@@ -5,7 +5,7 @@
 
 // Layer-2 forwarding between the bridge ports. Pure logic: no ESP-IDF.
 //
-// Ports: the USB network interface (the camera), the Wi-Fi access point (all
+// Ports: the USB network interface (the device), the Wi-Fi access point (all
 // stations share one port) and the adapter's own IP stack.
 enum Port : uint8_t { PORT_USB = 0, PORT_WIFI = 1, PORT_LOCAL = 2, PORT_COUNT = 3 };
 

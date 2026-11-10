@@ -1,5 +1,6 @@
-// BMCam adapter: makes an ESP32-S3 look like a USB Ethernet adapter to a
-// Blackmagic camera and bridges that link to its own Wi-Fi access point.
+// EthAir: makes an ESP32-S3 look like a USB Ethernet adapter to any device
+// with a USB host port (e.g. a camera) and bridges that link to its own Wi-Fi
+// access point.
 
 #include <cstring>
 
@@ -71,25 +72,25 @@ void addResetHint(DisplayModel& m) {
 void buildStatus(DisplayModel& m, const Settings& s) {
     BridgeStatus st;
     bridgeStatus(st);
-    const uint32_t cam = cameraIpForClients();
+    const uint32_t cam = deviceIpForClients();
     char ip[16];
     displaySetLine(m, 0, COLOR_CYAN, "%s", s.ssid);
     displaySetLine(m, 1, COLOR_WHITE, "pass %s", s.password);
     displaySetLine(m, 2, COLOR_GREY, "cfg http://192.168.73.1");
     if (!st.usbMounted) {
-        displaySetLine(m, 3, COLOR_YELLOW, "USB: no camera");
-        displaySetLine(m, 4, COLOR_GREY, "cam -");
+        displaySetLine(m, 3, COLOR_YELLOW, "USB: no device");
+        displaySetLine(m, 4, COLOR_GREY, "dev -");
     } else if (cam) {
         ipToStr(cam, ip);
-        displaySetLine(m, 3, COLOR_GREEN, "USB: camera OK");
-        displaySetLine(m, 4, COLOR_GREEN, "cam %s", ip);
-    } else if (st.cameraSeenIp) {
-        ipToStr(st.cameraSeenIp, ip);
-        displaySetLine(m, 3, COLOR_GREEN, "USB: camera OK");
-        displaySetLine(m, 4, COLOR_RED, "cam %s set DHCP!", ip);
+        displaySetLine(m, 3, COLOR_GREEN, "USB: device OK");
+        displaySetLine(m, 4, COLOR_GREEN, "dev %s", ip);
+    } else if (st.deviceSeenIp) {
+        ipToStr(st.deviceSeenIp, ip);
+        displaySetLine(m, 3, COLOR_GREEN, "USB: device OK");
+        displaySetLine(m, 4, COLOR_RED, "dev %s set DHCP!", ip);
     } else {
-        displaySetLine(m, 3, COLOR_GREEN, "USB: camera OK");
-        displaySetLine(m, 4, COLOR_YELLOW, "cam waiting for IP");
+        displaySetLine(m, 3, COLOR_GREEN, "USB: device OK");
+        displaySetLine(m, 4, COLOR_YELLOW, "dev waiting for IP");
     }
     displaySetLine(m, 5, st.wifiClients ? COLOR_GREEN : COLOR_GREY, "wifi clients %d",
                    st.wifiClients);
@@ -107,14 +108,14 @@ extern "C" void app_main(void) {
 
     Settings settings;
     settingsLoad(settings);
-    ESP_LOGI(TAG, "ssid %s, channel %u, camera name %s.local", settings.ssid,
-             (unsigned)settings.channel, settings.cameraHostname);
+    ESP_LOGI(TAG, "ssid %s, channel %u, mDNS fallback '%s'", settings.ssid,
+             (unsigned)settings.channel, settings.deviceHostname);
 
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     ESP_ERROR_CHECK(bridgeStart(settings));
     dhcpTaskStart();
-    mdnsTaskStart(settings.cameraHostname);
+    mdnsTaskStart(settings.deviceHostname);
     webStart(settings);
 
     bool stable = false;

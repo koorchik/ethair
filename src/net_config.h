@@ -2,10 +2,10 @@
 
 #include "logic/dhcp_server.h"
 
-// The adapter's network: one /24 shared by the camera (USB) and Wi-Fi clients.
+// The adapter's network: one /24 shared by the USB device and Wi-Fi clients.
 constexpr uint32_t ADAPTER_IP = ipv4(192, 168, 73, 1);
 constexpr uint32_t NETMASK = ipv4(255, 255, 255, 0);
-constexpr uint32_t CAMERA_IP = ipv4(192, 168, 73, 2);
+constexpr uint32_t DEVICE_IP = ipv4(192, 168, 73, 2);
 constexpr uint32_t POOL_START = ipv4(192, 168, 73, 10);
 constexpr uint32_t POOL_END = ipv4(192, 168, 73, 50);
 constexpr uint32_t LEASE_SECS = 3600;

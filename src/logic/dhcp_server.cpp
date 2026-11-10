@@ -119,11 +119,11 @@ void DhcpServer::clear() {
     memset(leases_, 0, sizeof(leases_));
 }
 
-DhcpLease* DhcpServer::findByMac(const uint8_t mac[6], bool camera) {
+DhcpLease* DhcpServer::findByMac(const uint8_t mac[6], bool device) {
     // A lease belongs to a (MAC, side) pair: a Wi-Fi client spoofing the
-    // camera's MAC never touches the camera's lease, and vice versa.
+    // device's MAC never touches the device's lease, and vice versa.
     for (DhcpLease& l : leases_) {
-        if (l.used && l.camera == camera && memcmp(l.mac, mac, 6) == 0) return &l;
+        if (l.used && l.device == device && memcmp(l.mac, mac, 6) == 0) return &l;
     }
     return nullptr;
 }
@@ -135,9 +135,9 @@ bool DhcpServer::ipTaken(uint32_t ip, const uint8_t mac[6], uint32_t nowSec) con
     return false;
 }
 
-uint32_t DhcpServer::pickIp(const uint8_t mac[6], bool camera, uint32_t requested,
+uint32_t DhcpServer::pickIp(const uint8_t mac[6], bool device, uint32_t requested,
                             uint32_t nowSec) {
-    if (camera) return cfg_.cameraIp;
+    if (device) return cfg_.deviceIp;
     DhcpLease* existing = findByMac(mac, false);
     if (existing) return existing->ip;
     if (requested >= cfg_.poolStart && requested <= cfg_.poolEnd &&
@@ -150,9 +150,9 @@ uint32_t DhcpServer::pickIp(const uint8_t mac[6], bool camera, uint32_t requeste
     return 0;
 }
 
-DhcpLease* DhcpServer::bind(const uint8_t mac[6], uint32_t ip, bool camera, uint32_t nowSec,
+DhcpLease* DhcpServer::bind(const uint8_t mac[6], uint32_t ip, bool device, uint32_t nowSec,
                             const char* hostname) {
-    DhcpLease* l = findByMac(mac, camera);
+    DhcpLease* l = findByMac(mac, device);
     if (!l) {
         for (DhcpLease& e : leases_) {
             if (!e.used || expired(e, nowSec)) {
@@ -167,14 +167,14 @@ DhcpLease* DhcpServer::bind(const uint8_t mac[6], uint32_t ip, bool camera, uint
             if ((int32_t)(e.expiresSec - l->expiresSec) < 0) l = &e;
         }
     }
-    // Only one camera lease: a new camera MAC replaces the old one.
-    if (camera) {
+    // Only one device lease: a new device MAC replaces the old one.
+    if (device) {
         for (DhcpLease& e : leases_) {
-            if (&e != l && e.used && e.camera) e.used = false;
+            if (&e != l && e.used && e.device) e.used = false;
         }
     }
     l->used = true;
-    l->camera = camera;
+    l->device = device;
     memcpy(l->mac, mac, 6);
     l->ip = ip;
     l->expiresSec = nowSec + cfg_.leaseSecs;
@@ -185,7 +185,7 @@ DhcpLease* DhcpServer::bind(const uint8_t mac[6], uint32_t ip, bool camera, uint
     return l;
 }
 
-size_t DhcpServer::handle(const uint8_t* in, size_t inLen, bool fromCamera, uint32_t nowSec,
+size_t DhcpServer::handle(const uint8_t* in, size_t inLen, bool fromDevice, uint32_t nowSec,
                           uint8_t* out, size_t outCap) {
     DhcpRequestInfo info;
     if (!dhcpParse(in, inLen, info)) return 0;
@@ -197,7 +197,7 @@ size_t DhcpServer::handle(const uint8_t* in, size_t inLen, bool fromCamera, uint
 
     switch (info.type) {
         case DHCP_DISCOVER: {
-            yiaddr = pickIp(info.mac, fromCamera, info.requestedIp, nowSec);
+            yiaddr = pickIp(info.mac, fromDevice, info.requestedIp, nowSec);
             if (!yiaddr) return 0;
             replyType = DHCP_OFFER;
             break;
@@ -208,9 +208,9 @@ size_t DhcpServer::handle(const uint8_t* in, size_t inLen, bool fromCamera, uint
                 return 0;
             }
             const uint32_t wanted = info.requestedIp ? info.requestedIp : info.ciaddr;
-            const uint32_t ours = pickIp(info.mac, fromCamera, wanted, nowSec);
+            const uint32_t ours = pickIp(info.mac, fromDevice, wanted, nowSec);
             if (ours && wanted == ours) {
-                bind(info.mac, ours, fromCamera, nowSec, info.hostname);
+                bind(info.mac, ours, fromDevice, nowSec, info.hostname);
                 yiaddr = ours;
                 replyType = DHCP_ACK;
             } else {
@@ -222,7 +222,7 @@ size_t DhcpServer::handle(const uint8_t* in, size_t inLen, bool fromCamera, uint
         case DHCP_DECLINE:
         case DHCP_RELEASE: {
             if (info.serverId && info.serverId != cfg_.serverIp) return 0;
-            DhcpLease* l = findByMac(info.mac, fromCamera);
+            DhcpLease* l = findByMac(info.mac, fromDevice);
             const uint32_t ip = info.type == DHCP_RELEASE ? info.ciaddr : info.requestedIp;
             if (l && l->ip == ip) l->used = false;
             return 0;
@@ -269,9 +269,9 @@ size_t DhcpServer::activeLeases(uint32_t nowSec, DhcpLease* out, size_t cap) con
     return n;
 }
 
-bool DhcpServer::cameraLease(uint32_t nowSec, DhcpLease& out) const {
+bool DhcpServer::deviceLease(uint32_t nowSec, DhcpLease& out) const {
     for (const DhcpLease& l : leases_) {
-        if (l.used && l.camera && !expired(l, nowSec)) {
+        if (l.used && l.device && !expired(l, nowSec)) {
             out = l;
             return true;
         }

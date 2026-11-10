@@ -73,9 +73,9 @@ void task(void*) {
         if (n <= 0) continue;
         DhcpRequestInfo info;
         if (!dhcpParse(in, (size_t)n, info)) continue;
-        const bool fromCamera = bridgeMacOnUsb(info.mac);
+        const bool fromDevice = bridgeMacOnUsb(info.mac);
         xSemaphoreTake(s_lock, portMAX_DELAY);
-        const size_t len = s_server->handle(in, (size_t)n, fromCamera, nowSec(), out, sizeof(out));
+        const size_t len = s_server->handle(in, (size_t)n, fromDevice, nowSec(), out, sizeof(out));
         xSemaphoreGive(s_lock);
         char ip[16];
         ipToStr(len ? ((uint32_t)out[16] << 24 | (uint32_t)out[17] << 16 |
@@ -85,7 +85,7 @@ void task(void*) {
         const uint8_t* m = info.mac;
         ESP_LOGI(TAG, "%s from %02x:%02x:%02x:%02x:%02x:%02x (%s%s%s) -> %s %s",
                  typeName(info.type), m[0], m[1], m[2], m[3], m[4], m[5],
-                 fromCamera ? "camera" : "wifi", info.hostname[0] ? ", " : "", info.hostname,
+                 fromDevice ? "usb" : "wifi", info.hostname[0] ? ", " : "", info.hostname,
                  len ? replyName(out, len) : "no reply", len ? ip : "");
         if (len) sendto(sock, out, len, 0, (sockaddr*)&to, sizeof(to));
     }
@@ -93,16 +93,16 @@ void task(void*) {
 }  // namespace
 
 void dhcpTaskStart() {
-    static const DhcpConfig cfg = {ADAPTER_IP, NETMASK, CAMERA_IP, POOL_START, POOL_END, LEASE_SECS};
+    static const DhcpConfig cfg = {ADAPTER_IP, NETMASK, DEVICE_IP, POOL_START, POOL_END, LEASE_SECS};
     s_server = new DhcpServer(cfg);
     s_lock = xSemaphoreCreateMutex();
     xTaskCreate(task, "dhcp", 4096, nullptr, 5, nullptr);
 }
 
-bool dhcpCameraLease(DhcpLease& out) {
+bool dhcpDeviceLease(DhcpLease& out) {
     if (!s_server) return false;
     xSemaphoreTake(s_lock, portMAX_DELAY);
-    const bool ok = s_server->cameraLease(nowSec(), out);
+    const bool ok = s_server->deviceLease(nowSec(), out);
     xSemaphoreGive(s_lock);
     return ok;
 }

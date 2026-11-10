@@ -32,7 +32,7 @@ esp_netif_t* s_netif = nullptr;
 std::atomic<bool> s_apUp{false};
 std::atomic<bool> s_usbUp{false};
 std::atomic<int> s_clients{0};
-std::atomic<uint32_t> s_cameraSeenIp{0};
+std::atomic<uint32_t> s_deviceSeenIp{0};
 std::atomic<uint32_t> s_usbToWifi{0}, s_wifiToUsb{0}, s_toLocal{0}, s_fromLocal{0}, s_drops{0};
 
 uint32_t nowMs() {
@@ -113,11 +113,11 @@ void localFreeRx(void* /*h*/, void* buffer) {
     free(buffer);
 }
 
-// --- USB (camera) ---------------------------------------------------------
+// --- USB (device) ---------------------------------------------------------
 esp_err_t usbRx(void* buffer, uint16_t len, void* /*ctx*/) {
     const uint8_t* f = (const uint8_t*)buffer;
     uint32_t ip = 0;
-    if (frameIpv4Sender(f, len, &ip)) s_cameraSeenIp = ip;
+    if (frameIpv4Sender(f, len, &ip)) s_deviceSeenIp = ip;
     const PortMask m = route(PORT_USB, f, len);
     if (m & portBit(PORT_WIFI)) {
         ++s_usbToWifi;
@@ -139,7 +139,7 @@ void usbEvent(tinyusb_event_t* event, void* /*arg*/) {
             break;
         case TINYUSB_EVENT_DETACHED:
             s_usbUp = false;
-            s_cameraSeenIp = 0;
+            s_deviceSeenIp = 0;
             portENTER_CRITICAL(&s_fwdLock);
             s_fwd->forgetPort(PORT_USB);
             portEXIT_CRITICAL(&s_fwdLock);
@@ -282,7 +282,7 @@ void bridgeStatus(BridgeStatus& out) {
     out.usbMounted = s_usbUp && tud_mounted();
     out.apStarted = s_apUp;
     out.wifiClients = s_clients;
-    out.cameraSeenIp = s_cameraSeenIp;
+    out.deviceSeenIp = s_deviceSeenIp;
     out.usbToWifi = s_usbToWifi;
     out.wifiToUsb = s_wifiToUsb;
     out.toLocal = s_toLocal;

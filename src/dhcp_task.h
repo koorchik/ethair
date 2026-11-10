@@ -5,5 +5,5 @@
 #include "logic/dhcp_server.h"
 
 void dhcpTaskStart();
-bool dhcpCameraLease(DhcpLease& out);
+bool dhcpDeviceLease(DhcpLease& out);
 size_t dhcpLeases(DhcpLease* out, size_t cap);

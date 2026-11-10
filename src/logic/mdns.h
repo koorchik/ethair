@@ -4,7 +4,7 @@
 #include <cstdint>
 
 // Minimal mDNS codec for the fallback responder: answers "<host>.local" A
-// queries on the camera's behalf. Pure logic. IPs are host-order.
+// queries on the USB device's behalf. Pure logic. IPs are host-order.
 
 constexpr uint16_t MDNS_PORT = 5353;
 constexpr uint16_t DNS_TYPE_A = 1;

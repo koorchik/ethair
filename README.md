@@ -8,7 +8,8 @@ discovery, REST APIs, WebSockets. It runs from the device's own USB port. Built 
 Cardputer and any bare ESP32‑S3 board.
 
 <p align="center">
-  <img src="docs/images/cardputer-ethair.png" width="560" alt="Cardputer running EthAir: Wi-Fi name, password, settings address, USB device connected at 192.168.73.2, one Wi-Fi client">
+  <img src="docs/images/cardputer-ethair.png" width="560" alt="Cardputer ADV running EthAir: Wi-Fi name, password, settings address, USB device connected at 192.168.73.2, one Wi-Fi client">
+  <br><sub>Cardputer ADV photo: M5Stack</sub>
 </p>
 
 ```
@@ -173,7 +174,8 @@ port for 3 minutes), or the download mode by hand (power off, hold G0, power on)
 | `src/display.cpp`, `src/button.cpp` | Cardputer screen, G0 button |
 | `src/logic/` | pure logic without ESP‑IDF, covered by `test/` |
 
-Design notes: `docs/superpowers/specs/`. Screens in this README: `tools/render_screens.py`.
+Design notes: `docs/superpowers/specs/`. Screens in this README: `tools/render_screens.py`; the
+photo composite: `tools/product_shot.py`.
 
 ## Limits
 

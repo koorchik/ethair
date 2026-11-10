@@ -248,6 +248,36 @@ esp_err_t startWifiAp(const Settings& s) {
     return esp_wifi_start();
 }
 
+// Hot-plug fix: when the board is already running (on battery) and the cable
+// is plugged in later, some hosts (the Blackmagic camera) never enumerate us,
+// while a cold start powered by the cable works. Until a host has configured
+// the device, briefly drop and restore the D+ pull-up every few seconds, like
+// re-plugging the cable. Once mounted this does nothing.
+constexpr uint32_t USB_REATTACH_MS = 5000;
+
+void usbWatchTask(void*) {
+    uint32_t since = nowMs();
+    uint32_t attempts = 0;
+    while (true) {
+        vTaskDelay(pdMS_TO_TICKS(500));
+        if (tud_mounted()) {
+            since = nowMs();
+            attempts = 0;
+            continue;
+        }
+        if (nowMs() - since < USB_REATTACH_MS) continue;
+        if (attempts < 3 || attempts % 60 == 0) {
+            ESP_LOGI(TAG, "no USB host has configured us for %lus, re-attaching",
+                     (unsigned long)((nowMs() - since) / 1000));
+        }
+        ++attempts;
+        tud_disconnect();
+        vTaskDelay(pdMS_TO_TICKS(200));
+        tud_connect();
+        since = nowMs();
+    }
+}
+
 esp_err_t startUsb() {
     esp_log_level_set("tusb_net", ESP_LOG_ERROR);  // per-drop warnings would stall USB
     s_usbTxQueue = xQueueCreate(USB_TX_QUEUE_LEN, sizeof(UsbFrame));
@@ -258,7 +288,9 @@ esp_err_t startUsb() {
     esp_read_mac(ncfg.mac_addr, ESP_MAC_ETH);
     ncfg.on_recv_callback = usbRx;
     ncfg.free_tx_buffer = usbFreeTx;
-    return tinyusb_net_init(&ncfg);
+    const esp_err_t e = tinyusb_net_init(&ncfg);
+    xTaskCreate(usbWatchTask, "usb_watch", 2560, nullptr, 3, nullptr);
+    return e;
 }
 }  // namespace
 

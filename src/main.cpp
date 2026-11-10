@@ -91,12 +91,12 @@ void buildStatus(DisplayModel& m, const Settings& s) {
     const uint32_t now = (uint32_t)(esp_timer_get_time() / 1000);
     if (st.usbMounted) usbSeenAt = now;
 #if BOARD_CARDPUTER
-    // No USB host for a while: most likely plugged into a camera with the
-    // Cardputer's own battery switch on (the camera then never starts its
-    // USB host). A computer does not mind, so only show it when nothing came.
+    // No USB host for a while. In a camera that is the Cardputer's own
+    // battery switch being on (the camera never starts its USB host), a
+    // charge-only cable or a loose plug; the board cannot tell which.
     if (!st.usbMounted && now - usbSeenAt >= 15000 && now >= 15000) {
-        displaySetLine(m, 3, COLOR_RED, "In a camera? Set the");
-        displaySetLine(m, 4, COLOR_RED, "CARDPUTER switch OFF");
+        displaySetLine(m, 3, COLOR_RED, "No USB data? Check:");
+        displaySetLine(m, 4, COLOR_RED, "switch OFF, cable");
     } else
 #endif
     if (!st.usbMounted) {

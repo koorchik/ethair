@@ -40,7 +40,8 @@ gets a gateway either, so a computer used for setup keeps its own internet.
 **Cardputer with a camera: keep the Cardputer's power switch OFF.** With the battery on, the
 Cardputer puts its own 5 V on the USB‑C port and the Blackmagic camera then never starts its USB
 host, so the screen stays at `USB: no device`; after 15 s without a USB host the screen says
-`In a camera? Set the CARDPUTER switch OFF`. Switched off, the Cardputer runs from the camera's port and
+`No USB data? Check: switch OFF, cable` (a charge‑only cable or a loose plug looks the same to the
+board). Switched off, the Cardputer runs from the camera's port and
 is found within ~20 s of plugging in. (A computer does not mind either way. A bare ESP32‑S3 board
 without a battery is not affected.)
 

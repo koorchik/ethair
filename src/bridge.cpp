@@ -55,8 +55,14 @@ struct UsbFrame {
 constexpr int USB_TX_QUEUE_LEN = 32;
 QueueHandle_t s_usbTxQueue = nullptr;
 
+// Without VBUS sensing a pulled cable looks like a bus suspend, so "mounted
+// and not suspended" is the only reliable sign of a live link.
+bool usbLinkUp() {
+    return tud_mounted() && !tud_suspended();
+}
+
 void sendUsb(const void* frame, size_t len) {
-    if (!s_usbUp || !tud_mounted()) return;
+    if (!usbLinkUp()) return;
     void* buf = malloc(len);
     if (!buf) {
         ++s_drops;
@@ -136,6 +142,12 @@ void usbEvent(tinyusb_event_t* event, void* /*arg*/) {
         case TINYUSB_EVENT_ATTACHED:
             s_usbUp = true;
             ESP_LOGI(TAG, "USB host attached");
+            break;
+        case TINYUSB_EVENT_SUSPENDED:
+            ESP_LOGI(TAG, "USB bus suspended (cable pulled?)");
+            break;
+        case TINYUSB_EVENT_RESUMED:
+            ESP_LOGI(TAG, "USB bus resumed");
             break;
         case TINYUSB_EVENT_DETACHED:
             s_usbUp = false;
@@ -250,25 +262,38 @@ esp_err_t startWifiAp(const Settings& s) {
 
 // Hot-plug fix: when the board is already running (on battery) and the cable
 // is plugged in later, some hosts (the Blackmagic camera) never enumerate us,
-// while a cold start powered by the cable works. Until a host has configured
-// the device, briefly drop and restore the D+ pull-up every few seconds, like
-// re-plugging the cable. Once mounted this does nothing.
-constexpr uint32_t USB_REATTACH_MS = 5000;
+// while a cold start powered by the cable works. And a pulled cable only shows
+// up as a bus suspend. So whenever the link has been down (not configured, or
+// suspended) for a few seconds: treat the device as gone and briefly drop and
+// restore the D+ pull-up, like re-plugging the cable. Idle while the link is up.
+constexpr uint32_t USB_DOWN_MS = 3000;
+constexpr uint32_t USB_REATTACH_UNMOUNTED_MS = 5000;
+constexpr uint32_t USB_REATTACH_SUSPENDED_MS = 10000;
 
 void usbWatchTask(void*) {
     uint32_t since = nowMs();
     uint32_t attempts = 0;
+    bool forgotten = false;
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(500));
-        if (tud_mounted()) {
+        if (usbLinkUp()) {
             since = nowMs();
             attempts = 0;
+            forgotten = false;
             continue;
         }
-        if (nowMs() - since < USB_REATTACH_MS) continue;
+        const uint32_t down = nowMs() - since;
+        if (!forgotten && down >= USB_DOWN_MS) {
+            forgotten = true;
+            s_usbUp = false;
+            s_deviceSeenIp = 0;
+            portENTER_CRITICAL(&s_fwdLock);
+            s_fwd->forgetPort(PORT_USB);
+            portEXIT_CRITICAL(&s_fwdLock);
+        }
+        if (down < (tud_mounted() ? USB_REATTACH_SUSPENDED_MS : USB_REATTACH_UNMOUNTED_MS)) continue;
         if (attempts < 3 || attempts % 60 == 0) {
-            ESP_LOGI(TAG, "no USB host has configured us for %lus, re-attaching",
-                     (unsigned long)((nowMs() - since) / 1000));
+            ESP_LOGI(TAG, "USB link down for %lus, re-attaching", (unsigned long)(down / 1000));
         }
         ++attempts;
         tud_disconnect();
@@ -278,11 +303,29 @@ void usbWatchTask(void*) {
     }
 }
 
+// Same as esp_tinyusb's default NCM-only configuration (interfaces 0/1,
+// endpoints 1/2, MAC string index 5 from its default string table) but
+// WITHOUT remote wakeup. With remote wakeup advertised, the camera's Linux
+// autosuspends the idle adapter and frames for it are lost while suspended;
+// without it, usbnet keeps an open interface awake.
+enum { ITF_NET = 0, ITF_NET_DATA, ITF_TOTAL };
+constexpr uint8_t EP_NET_NOTIF = 1;
+constexpr uint8_t EP_NET_DATA = 2;
+constexpr uint8_t STRID_NET_IF = 4;
+constexpr uint8_t STRID_NET_MAC = 5;
+constexpr uint16_t CONFIG_TOTAL_LEN = TUD_CONFIG_DESC_LEN + TUD_CDC_NCM_DESC_LEN;
+const uint8_t kFsConfig[] = {
+    TUD_CONFIG_DESCRIPTOR(1, ITF_TOTAL, 0, CONFIG_TOTAL_LEN, 0, 100),
+    TUD_CDC_NCM_DESCRIPTOR(ITF_NET, STRID_NET_IF, STRID_NET_MAC, (0x80 | EP_NET_NOTIF), 64,
+                           EP_NET_DATA, (0x80 | EP_NET_DATA), 64, CFG_TUD_NET_MTU),
+};
+
 esp_err_t startUsb() {
     esp_log_level_set("tusb_net", ESP_LOG_ERROR);  // per-drop warnings would stall USB
     s_usbTxQueue = xQueueCreate(USB_TX_QUEUE_LEN, sizeof(UsbFrame));
     xTaskCreate(usbTxTask, "usb_tx", 3072, nullptr, 6, nullptr);
     tinyusb_config_t tcfg = TINYUSB_DEFAULT_CONFIG(usbEvent, nullptr);
+    tcfg.descriptor.full_speed_config = kFsConfig;
     ESP_ERROR_CHECK(tinyusb_driver_install(&tcfg));
     tinyusb_net_config_t ncfg = {};
     esp_read_mac(ncfg.mac_addr, ESP_MAC_ETH);
@@ -311,7 +354,7 @@ esp_err_t bridgeStart(const Settings& settings) {
 }
 
 void bridgeStatus(BridgeStatus& out) {
-    out.usbMounted = s_usbUp && tud_mounted();
+    out.usbMounted = usbLinkUp();
     out.apStarted = s_apUp;
     out.wifiClients = s_clients;
     out.deviceSeenIp = s_deviceSeenIp;

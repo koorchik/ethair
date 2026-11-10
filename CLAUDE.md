@@ -79,8 +79,10 @@ thin. No serial console while NCM runs — use `/api/log` (ring buffer).
   access, even target‑36 apps (Chrome failed with `ERR_TOO_MANY_RETRIES`). A gateway is not needed.
 - **A USB host computer must never get a gateway** from the adapter (it once took over a dev PC's
   default route and cut its internet).
+- The boot guard counts crashes per firmware image (first 4 bytes of the ELF SHA): after a
+  reflash the old crash count no longer forces safe mode.
 - Low heap kills the bridge silently (frames can't be allocated): firmware restarts if free heap
-  stays < 12 KB for 20 s; `/api/status` reports `min_free_heap`.
+  stays < 12 KB (or the largest free block < 4 KB) for 20 s; `/api/status` reports `min_free_heap`.
 
 ## Keeping the two firmwares in sync
 

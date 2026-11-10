@@ -10,6 +10,7 @@
 #include "dhcp_task.h"
 #include "display.h"
 #include "esp_event.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_netif.h"
 #include "esp_ota_ops.h"
@@ -158,7 +159,10 @@ extern "C" void app_main(void) {
             vTaskDelay(pdMS_TO_TICKS(200));
             esp_restart();
         }
-        if (esp_get_free_heap_size() < LOW_HEAP_BYTES) {
+        // Total free heap can look fine while it is too fragmented to
+        // allocate a frame, so the largest block counts too.
+        if (esp_get_free_heap_size() < LOW_HEAP_BYTES ||
+            heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT) < 4096) {
             if (!lowHeapSince) lowHeapSince = ms ? ms : 1;
             if (ms - lowHeapSince >= LOW_HEAP_MS) {
                 ESP_LOGE(TAG, "free heap stayed below %u bytes; restarting", (unsigned)LOW_HEAP_BYTES);

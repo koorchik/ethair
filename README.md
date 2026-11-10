@@ -37,9 +37,10 @@ gets a gateway either, so a computer used for setup keeps its own internet.
 - Verified on a Galaxy S24 Ultra (Android 17): settings page in Chrome and Samsung Internet,
   phone → adapter → USB host HTTP, ~585 KB/s for a 2 MB download.
 
-**Cardputer with a camera: keep the power switch OFF.** With the battery on, the Cardputer
-puts its own 5 V on the USB‑C port and the Blackmagic camera then never starts its USB host, so
-the screen stays at `USB: no device`. Switched off, the Cardputer runs from the camera's port and
+**Cardputer with a camera: keep the Cardputer's power switch OFF.** With the battery on, the
+Cardputer puts its own 5 V on the USB‑C port and the Blackmagic camera then never starts its USB
+host, so the screen stays at `USB: no device`; after 15 s without a USB host the screen says
+`In a camera? Set the CARDPUTER switch OFF`. Switched off, the Cardputer runs from the camera's port and
 is found within ~20 s of plugging in. (A computer does not mind either way. A bare ESP32‑S3 board
 without a battery is not affected.)
 
@@ -104,7 +105,9 @@ While the firmware runs, the USB‑C port is a network card, not a serial port. 
 
 1. **Over the network (normal):** a computer connected to the adapter over USB or Wi‑Fi reaches
    `192.168.73.1`, and `tools/flash.sh` uploads via `/api/ota`. A new image is kept only after it
-   has run for 30 s and served an HTTP request; otherwise the bootloader rolls back.
+   has run for 30 s and served an HTTP request; otherwise the bootloader rolls back (an image that
+   has not confirmed itself within 90 s restarts on its own to roll back). The firmware also
+   restarts if its free heap stays below 12 KB for 20 s; `/api/status` reports `min_free_heap`.
 2. **Safe mode:** `curl -X POST -H "X-EthAir: 1" "http://192.168.73.1/api/reboot?mode=safe"` — the
    board restarts with USB as a serial port (`/dev/ttyACM0`), then `tools/flash.sh cardputer --usb`.
    Without flashing, safe mode returns to normal by itself after 3 minutes. Two crashes in a row

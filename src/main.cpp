@@ -13,6 +13,7 @@
 #include "esp_log.h"
 #include "esp_netif.h"
 #include "esp_ota_ops.h"
+#include "esp_system.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -27,6 +28,14 @@
 namespace {
 const char* TAG = "main";
 constexpr int64_t OTA_CONFIRM_MS = 30000;
+// A fresh OTA image that has not confirmed itself by then restarts, so the
+// bootloader rolls back to the previous firmware without anyone touching the
+// board (e.g. it runs but its network is broken).
+constexpr int64_t OTA_GIVE_UP_MS = 90000;
+// Free heap below this for LOW_HEAP_MS means the network can no longer
+// allocate frames: restart rather than sit there unreachable.
+constexpr size_t LOW_HEAP_BYTES = 12 * 1024;
+constexpr int64_t LOW_HEAP_MS = 20000;
 
 void initNvs() {
     esp_err_t e = nvs_flash_init();
@@ -77,6 +86,18 @@ void buildStatus(DisplayModel& m, const Settings& s) {
     displaySetLine(m, 0, COLOR_CYAN, "%s", s.ssid);
     displaySetLine(m, 1, COLOR_WHITE, "pass %s", s.password);
     displaySetLine(m, 2, COLOR_GREY, "cfg http://192.168.73.1");
+    static uint32_t usbSeenAt = 0;
+    const uint32_t now = (uint32_t)(esp_timer_get_time() / 1000);
+    if (st.usbMounted) usbSeenAt = now;
+#if BOARD_CARDPUTER
+    // No USB host for a while: most likely plugged into a camera with the
+    // Cardputer's own battery switch on (the camera then never starts its
+    // USB host). A computer does not mind, so only show it when nothing came.
+    if (!st.usbMounted && now - usbSeenAt >= 15000 && now >= 15000) {
+        displaySetLine(m, 3, COLOR_RED, "In a camera? Set the");
+        displaySetLine(m, 4, COLOR_RED, "CARDPUTER switch OFF");
+    } else
+#endif
     if (!st.usbMounted) {
         displaySetLine(m, 3, COLOR_YELLOW, "USB: no device");
         displaySetLine(m, 4, COLOR_GREY, "dev -");
@@ -120,6 +141,7 @@ extern "C" void app_main(void) {
 
     bool stable = false;
     bool otaConfirmed = false;
+    int64_t lowHeapSince = 0;
     DisplayModel m = {};
     while (true) {
         const int64_t ms = esp_timer_get_time() / 1000;
@@ -130,6 +152,21 @@ extern "C" void app_main(void) {
             if (webOtaPending()) ESP_LOGI(TAG, "new firmware confirmed");
             esp_ota_mark_app_valid_cancel_rollback();
             otaConfirmed = true;
+        }
+        if (!otaConfirmed && ms >= OTA_GIVE_UP_MS && webOtaPending()) {
+            ESP_LOGE(TAG, "new firmware never confirmed itself; restarting to roll back");
+            vTaskDelay(pdMS_TO_TICKS(200));
+            esp_restart();
+        }
+        if (esp_get_free_heap_size() < LOW_HEAP_BYTES) {
+            if (!lowHeapSince) lowHeapSince = ms ? ms : 1;
+            if (ms - lowHeapSince >= LOW_HEAP_MS) {
+                ESP_LOGE(TAG, "free heap stayed below %u bytes; restarting", (unsigned)LOW_HEAP_BYTES);
+                vTaskDelay(pdMS_TO_TICKS(200));
+                esp_restart();
+            }
+        } else {
+            lowHeapSince = 0;
         }
         if (!stable && ms >= BOOT_GUARD_STABLE_MS) {
             bootModeMarkStable();
